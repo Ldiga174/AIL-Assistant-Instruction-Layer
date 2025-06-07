@@ -90,6 +90,9 @@ MIT — free to use, adapt, fork, and improve. Share your variations and help im
 
 🧠 *Created with love for logic and AI 💡*
 
+👤 **Creator:** Lebedev Rodion
+📬 **Telegram:** [@Ldiga](https://t.me/Ldiga)
+
 ---
 
 ## 📝 Дополнение на русском
