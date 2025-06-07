@@ -1,0 +1,43 @@
+{
+  "ai_behavior": {
+    "language": "russian",
+    "priority": "working_code_first",
+    "initialization": {
+      "entry_point": "project.init.md",
+      "mandatory_checks": "prestart.checklist",
+      "logging": "ailog.md",
+      "task_source": "task.todo.json"
+    },
+    "rules": [
+      "Всегда начинай с project.init.md",
+      "Выполни prestart.checklist перед задачами",
+      "Логируй все действия в ailog.md",
+      "Не меняй рабочий код без запроса",
+      "Используй современные практики 2024-2025",
+      "Сохраняй структуру и стиль проекта"
+    ],
+    "workflow": {
+      "1": "Читай project.init.md",
+      "2": "Проверь prestart.checklist",
+      "3": "При неудаче - останавливайся",
+      "4": "При успехе - читай ailog.md",
+      "5": "Выполняй задачи из task.todo.json",
+      "6": "Завершай сессию записью в ailog.md"
+    }
+  },
+  "project_meta": {
+    "name": "AI Dashboard Project",
+    "goal": "Создать красивый AI Dashboard с сервером",
+    "tech_stack": ["Node.js", "Express", "HTML/CSS/JS", "pm2"],
+    "ports": [3000, 34256],
+    "deployment": "pm2"
+  },
+  "file_structure": {
+    "init": "project.init.md",
+    "checklist": "prestart.checklist", 
+    "log": "ailog.md",
+    "tasks": "task.todo.json",
+    "meta": "ai.meta.json",
+    "success_snapshots": "snapshot.success.md"
+  }
+} 

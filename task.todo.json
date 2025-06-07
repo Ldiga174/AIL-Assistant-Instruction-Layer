@@ -1,0 +1,46 @@
+{
+  "project": "AI Dashboard Project",
+  "created": "2024-12-19",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Создать AI Dashboard сервер",
+      "description": "Разработать Node.js сервер для AI Dashboard с красивым интерфейсом",
+      "priority": "high",
+      "status": "pending",
+      "requirements": [
+        "Node.js/Express сервер",
+        "Современный UI (HTML/CSS/JS)",
+        "Порт 3000 или 34256",
+        "Интеграция с pm2"
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Настроить pm2 конфигурацию",
+      "description": "Создать ecosystem.config.js для pm2 управления сервером",
+      "priority": "medium",
+      "status": "pending",
+      "requirements": [
+        "ecosystem.config.js",
+        "Автозапуск сервера",
+        "Мониторинг процессов"
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Создать красивый UI для Dashboard",
+      "description": "Современный веб-интерфейс с адаптивным дизайном",
+      "priority": "high",
+      "status": "pending",
+      "requirements": [
+        "Responsive дизайн",
+        "Современные CSS фреймворки",
+        "JavaScript интерактивность",
+        "Темная/светлая тема"
+      ]
+    }
+  ],
+  "completed": [],
+  "notes": "Задачи выполняются строго после прохождения prestart.checklist"
+} 
