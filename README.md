@@ -93,6 +93,14 @@ MIT — free to use, adapt, fork, and improve. Share your variations and help im
 👤 **Creator:** Lebedev Rodion
 📬 **Telegram:** [@Ldiga](https://t.me/Ldiga)
 
+Если хотите поддержать:
+
+USDT (TRC20): TKmwpkDZiVf1gshTR2rf8nA6vGihG1HUMn
+
+BTC: bc1qz9ccgaqw6mdhzgm4z5hv4q43mesv7nzn3qvpyq
+
+DOGE: DNowS8oXMk7tuGDN4bM4sZCor6huXx1C2U
+
 ---
 
 ## 📝 Дополнение на русском
