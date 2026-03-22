@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AIL Result Contract",
+  "description": "Schema for results returned by agents to AIL",
+  "type": "object",
+  "required": ["task_id", "agent", "status"],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^task-[0-9]{3,}$",
+      "description": "Task identifier this result belongs to"
+    },
+    "agent": {
+      "type": "string",
+      "enum": ["opencode", "openclaw"],
+      "description": "Which agent produced this result"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["success", "partial", "failed", "error"],
+      "description": "Outcome of the agent execution"
+    },
+    "artifacts": {
+      "type": "object",
+      "properties": {
+        "files_changed": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Files that were created or modified"
+        },
+        "files_deleted": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Files that were deleted"
+        },
+        "commands": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Shell commands that were or should be executed"
+        },
+        "outputs": {
+          "type": "object",
+          "description": "Arbitrary structured output data"
+        }
+      },
+      "additionalProperties": true
+    },
+    "notes": {
+      "type": "string",
+      "description": "Human-readable summary of what was done"
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "details": { "type": "string" }
+        },
+        "required": ["message"]
+      },
+      "description": "List of errors encountered"
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Execution duration in milliseconds"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}
