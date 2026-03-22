@@ -42,35 +42,22 @@ ALLOWED_BINARIES: set[str] = {
     "python", "python3",
     "pip", "pip3",
     "pytest",
-    "uvicorn", "gunicorn", "flask",
-    "node", "npm", "npx", "pnpm", "yarn",
-    "docker", "docker-compose",
-    "ls", "pwd", "echo", "cat", "head", "tail", "wc",
-    "mkdir", "cp", "mv", "touch",
-    "git",
-    "env", "printenv", "which", "whoami", "date", "uname",
-    "curl", "wget",
-    "make",
-    "sh", "bash",
+    "uvicorn",
+    "node", "npm", "pnpm", "yarn",
+    "docker",
+    "ls", "pwd", "echo", "cat",
+    "mkdir", "cp", "mv",
 }
 
 # ── Blocklist: these patterns are always rejected ─────────────────────────
 
 BLOCKED_PATTERNS: list[str] = [
-    "rm -rf",
-    "rm -r /",
     "sudo ",
     "shutdown",
     "reboot",
     "mkfs",
-    "dd if=",
     ":(){ :",
-    "curl|bash",
-    "curl | bash",
-    "wget|bash",
-    "wget | bash",
     "> /dev/",
-    "chmod 777",
 ]
 
 BLOCKED_SHELL_OPERATORS: list[str] = [
