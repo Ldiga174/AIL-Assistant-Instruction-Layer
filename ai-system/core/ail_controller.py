@@ -5,10 +5,10 @@ This is the single decision-making authority in the system.
 No agent acts independently; everything flows through here.
 
 Lifecycle:
-  1. Receive goal from Owner
+  1. Receive goal from Owner (handle_goal) or Task object (handle_task)
   2. Plan (via Planner)
   3. Route (via Router)
-  4. Dispatch to agents (OpenCode / OpenClaw)
+  4. Dispatch to agents — OpenCode first, then OpenClaw
   5. Validate results (via Validator)
   6. Retry or accept
   7. Log everything (via Memory)
@@ -17,7 +17,6 @@ Lifecycle:
 from __future__ import annotations
 
 import logging
-import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -27,7 +26,6 @@ from agents.shared.base_agent import BaseAgent
 from agents.shared.models import (
     AgentName,
     AgentResult,
-    ResultStatus,
     Task,
     TaskStatus,
     ValidationAction,
@@ -47,6 +45,8 @@ from core.router import Router
 from core.validator import Validator
 
 logger = logging.getLogger(__name__)
+
+DISPATCH_ORDER = [AgentName.OPENCODE, AgentName.OPENCLAW]
 
 
 class AILController:
@@ -74,15 +74,18 @@ class AILController:
         repo: str = ".",
         constraints: list[str] | None = None,
     ) -> dict[str, Any]:
-        """
-        Entry point: Owner gives a goal, AIL handles the rest.
-
-        Returns a summary dict with task_id, status, validation, and logs.
-        """
-        append_log(f"New goal received: {goal}")
-
+        """Entry point for text goals — plans the task, then runs it."""
         task = self.planner.plan(goal, repo=repo, constraints=constraints)
-        append_log(f"Task {task.task_id} planned: role={task.role.value}, steps={len(task.steps)}")
+        return self.handle_task(task)
+
+    def handle_task(self, task: Task) -> dict[str, Any]:
+        """
+        Entry point for pre-built Task objects (e.g. loaded from JSON).
+
+        Full cycle: plan -> route -> dispatch -> validate -> decide -> log.
+        """
+        append_log(f"New task received: {task.task_id} — {task.goal}")
+        append_log(f"Task {task.task_id} classified: role={task.role.value}")
 
         persist_task(task.to_dict(), "incoming")
 
@@ -119,14 +122,22 @@ class AILController:
         }
 
     def _dispatch(self, task: Task) -> list[AgentResult]:
-        """Send task steps to appropriate agents and collect results."""
+        """
+        Send task steps to appropriate agents and collect results.
+
+        Order is guaranteed: OpenCode first, OpenClaw second.
+        This matters for hybrid tasks where code must be ready before execution.
+        """
         results: list[AgentResult] = []
 
         agents_needed: set[AgentName] = set()
         for step in task.steps:
             agents_needed.add(step.agent)
 
-        for agent_name in agents_needed:
+        for agent_name in DISPATCH_ORDER:
+            if agent_name not in agents_needed:
+                continue
+
             agent = self.agents.get(agent_name)
             if not agent:
                 logger.error("No agent registered for %s", agent_name.value)
@@ -141,7 +152,8 @@ class AILController:
 
             self._update_agent_state(agent_name, "idle", None)
             append_log(
-                f"Agent {agent_name.value} returned: status={result.status.value}"
+                f"Agent {agent_name.value} returned: "
+                f"status={result.status.value}, notes={result.notes[:80]}"
             )
 
         return results
@@ -158,18 +170,14 @@ class AILController:
     def _decide(
         self, task: Task, validation_summary: list[dict[str, Any]]
     ) -> TaskStatus:
-        """
-        Final decision: accept, retry, or fail.
-
-        Retry loop is capped by task.max_retries.
-        """
         for vs in validation_summary:
             action = vs.get("action", "accept")
             if action == ValidationAction.RETRY.value:
                 if task.retry_count < task.max_retries:
                     task.retry_count += 1
                     append_log(
-                        f"Retrying task {task.task_id} (attempt {task.retry_count}/{task.max_retries})"
+                        f"Retrying task {task.task_id} "
+                        f"(attempt {task.retry_count}/{task.max_retries})"
                     )
                     return TaskStatus.RETRYING
                 else:
@@ -216,9 +224,13 @@ class AILController:
             "## Agent Results",
         ]
         for r in results:
-            lines.append(f"### {r.agent}")
+            lines.append(f"### {r.agent.value}")
             lines.append(f"- Status: {r.status.value}")
             lines.append(f"- Notes: {r.notes}")
+            if r.artifacts.files_changed:
+                lines.append(f"- Files changed: {', '.join(r.artifacts.files_changed)}")
+            if r.artifacts.commands:
+                lines.append(f"- Commands: {', '.join(r.artifacts.commands)}")
             if r.errors:
                 lines.append("- Errors:")
                 for e in r.errors:
@@ -229,8 +241,8 @@ class AILController:
         for v in validations:
             lines.append(f"- Passed: {v['passed']}, Action: {v['action']}")
             for c in v.get("checks", []):
-                status_icon = "pass" if c["passed"] else "FAIL"
-                lines.append(f"  - [{status_icon}] {c['check_name']}: {c.get('message', '')}")
+                icon = "PASS" if c["passed"] else "FAIL"
+                lines.append(f"  - [{icon}] {c['check_name']}: {c.get('message', '')}")
             lines.append("")
 
         save_task_log(task.task_id, "\n".join(lines))

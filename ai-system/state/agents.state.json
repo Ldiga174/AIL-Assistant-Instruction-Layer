@@ -1,14 +1,1 @@
-{
-  "agents": {
-    "opencode": {
-      "status": "idle",
-      "current_task": null,
-      "updated_at": "2026-03-22T05:27:18.431008+00:00"
-    },
-    "openclaw": {
-      "status": "idle",
-      "current_task": null,
-      "updated_at": null
-    }
-  }
-}
+{"agents": {"opencode": {"status": "idle", "current_task": null}, "openclaw": {"status": "idle", "current_task": null}}}

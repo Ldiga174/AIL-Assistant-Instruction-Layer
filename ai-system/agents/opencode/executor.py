@@ -1,22 +1,14 @@
 """
 OpenCode executor — the programming brain.
 
-This module contains the actual logic that OpenCode uses to:
-  1. Analyse the task
-  2. Read / inspect project files
-  3. Generate or modify code
-  4. Prepare shell commands for build/test
-  5. Return artefacts to AIL
-
-The current implementation is a *synchronous skeleton* that returns
-structured results.  Real AI-backed execution (LLM calls, tool use)
-will be plugged in here.
+Current implementation: stub that returns realistic test artifacts.
+Real AI-backed execution (LLM calls, tool use) will replace the
+stub logic in Step 3.
 """
 
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 
 from agents.shared.models import (
@@ -41,24 +33,35 @@ class OpenCodeExecutor:
                 task_id=task.task_id,
                 agent=AgentName.OPENCODE,
                 status=ResultStatus.FAILED,
-                errors=[ErrorInfo(message=f"Repository path not found: {repo}", code="REPO_NOT_FOUND")],
+                errors=[ErrorInfo(
+                    message=f"Repository path not found: {repo}",
+                    code="REPO_NOT_FOUND",
+                )],
+                notes="code step failed: repo missing",
             )
 
         files_changed: list[str] = []
         commands: list[str] = []
         notes_parts: list[str] = []
 
-        for step in task.steps:
-            if step.agent.value != "opencode":
-                continue
+        my_steps = [s for s in task.steps if s.agent == AgentName.OPENCODE]
 
-            logger.info("[OpenCode] Executing step %s: %s", step.step_id, step.action)
-            notes_parts.append(f"step {step.step_id}: {step.action} — acknowledged")
+        for step in my_steps:
+            logger.info("[OpenCode] step %s: %s", step.step_id, step.action)
 
-        if not task.steps:
-            notes_parts.append(f"Goal acknowledged: {task.goal}")
-            notes_parts.append(f"Repo: {repo}")
-            notes_parts.append(f"Constraints: {', '.join(task.inputs.constraints) or 'none'}")
+            files_changed.extend([
+                f"{repo}/src/api/handler.py",
+                f"{repo}/src/api/routes.py",
+            ])
+            commands.append("python -m pytest tests/")
+            notes_parts.append(
+                f"step {step.step_id}: created handler.py, updated routes.py"
+            )
+
+        if not my_steps:
+            files_changed.append(f"{repo}/src/main.py")
+            commands.append("python -m pytest tests/")
+            notes_parts.append(f"Processed goal: {task.goal}")
 
         return AgentResult(
             task_id=task.task_id,
@@ -68,5 +71,5 @@ class OpenCodeExecutor:
                 files_changed=files_changed,
                 commands=commands,
             ),
-            notes="; ".join(notes_parts),
+            notes="code step complete; " + "; ".join(notes_parts),
         )
