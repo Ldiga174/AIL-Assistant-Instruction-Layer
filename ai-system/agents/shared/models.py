@@ -121,10 +121,14 @@ class Task:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Task:
         inputs_raw = data.get("inputs", {})
+        known_input_keys = {"repo", "constraints", "context", "files"}
+        extra = {k: v for k, v in inputs_raw.items() if k not in known_input_keys}
+        context = dict(inputs_raw.get("context", {}))
+        context.update(extra)
         inputs = TaskInputs(
             repo=inputs_raw.get("repo", "."),
             constraints=inputs_raw.get("constraints", []),
-            context=inputs_raw.get("context", {}),
+            context=context,
             files=inputs_raw.get("files", []),
         )
         steps = [
@@ -180,6 +184,27 @@ class Artifacts:
             "files_deleted": self.files_deleted,
             "commands": self.commands,
             "outputs": self.outputs,
+        }
+
+
+@dataclass
+class CommandResult:
+    """Structured result of a single shell command execution."""
+    command: str
+    exit_code: int
+    stdout: str
+    stderr: str
+    duration_ms: int
+    allowed: bool = True
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "command": self.command,
+            "exit_code": self.exit_code,
+            "stdout": self.stdout,
+            "stderr": self.stderr,
+            "duration_ms": self.duration_ms,
+            "allowed": self.allowed,
         }
 
 
