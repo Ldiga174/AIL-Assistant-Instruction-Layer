@@ -27,6 +27,7 @@ from agents.shared.models import (
     AgentName,
     AgentResult,
     Task,
+    TaskRole,
     TaskStatus,
     ValidationAction,
 )
@@ -126,7 +127,9 @@ class AILController:
         Send task steps to appropriate agents and collect results.
 
         Order is guaranteed: OpenCode first, OpenClaw second.
-        This matters for hybrid tasks where code must be ready before execution.
+        For hybrid tasks, after OpenCode completes, AIL transfers
+        produced commands into task.inputs.commands so OpenClaw
+        picks them up automatically — no manual injection.
         """
         results: list[AgentResult] = []
 
@@ -156,7 +159,36 @@ class AILController:
                 f"status={result.status.value}, notes={result.notes[:80]}"
             )
 
+            if agent_name == AgentName.OPENCODE:
+                self._handoff_commands(task, result, agents_needed)
+
         return results
+
+    def _handoff_commands(
+        self,
+        task: Task,
+        opencode_result: AgentResult,
+        agents_needed: set[AgentName],
+    ) -> None:
+        """
+        Transfer commands from OpenCode result into task.inputs.commands
+        so OpenClaw can pick them up in hybrid tasks.
+        """
+        if AgentName.OPENCLAW not in agents_needed:
+            return
+
+        produced = opencode_result.artifacts.commands
+        if not produced:
+            append_log(f"OpenCode produced no commands — nothing to hand off")
+            return
+
+        task.inputs.commands = list(produced)
+        append_log(
+            f"OpenCode produced commands: {produced}"
+        )
+        append_log(
+            f"Injected commands into task.inputs.commands for OpenClaw"
+        )
 
     def _validate_all(
         self, task: Task, results: list[AgentResult]
@@ -165,6 +197,11 @@ class AILController:
         for result in results:
             vr = self.validator.validate(task, result)
             summaries.append(vr.to_dict())
+
+        if task.role == TaskRole.HYBRID and len(results) >= 2:
+            handoff_vr = self.validator.validate_handoff(task, results)
+            summaries.append(handoff_vr.to_dict())
+
         return summaries
 
     def _decide(

@@ -5,10 +5,10 @@ OpenClaw is an executor, not a thinker. No LLM call needed.
 The adapter extracts commands from the task and passes them
 to the executor for safe, controlled execution.
 
-Command sources (checked in order):
-  1. task.inputs.context["commands"] — explicit command list
-  2. task.steps[].action with "run:" prefix — step-based commands
-  3. task.steps[].action — raw step actions treated as commands
+Command sources (checked in priority order):
+  1. task.inputs.commands — primary (set by AIL handoff from OpenCode)
+  2. task.inputs.context["commands"] — fallback for compatibility
+  3. task.steps[].action — last resort from step definitions
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ class OpenClawAdapter(BaseAgent):
     """
     Adapter connecting AIL to the OpenClaw shell executor.
 
-    Flow: Task -> extract commands -> executor.run() -> AgentResult
+    Flow: Task -> extract commands -> executor.execute() -> AgentResult
     """
 
     def __init__(self) -> None:
@@ -47,7 +47,7 @@ class OpenClawAdapter(BaseAgent):
                 errors=[ErrorInfo(
                     message="No commands to execute",
                     code="NO_COMMANDS",
-                    details="Task has no commands in inputs.context.commands or steps",
+                    details="No commands in inputs.commands, context.commands, or steps",
                 )],
                 notes="exec step failed: no commands provided",
             )
@@ -57,15 +57,22 @@ class OpenClawAdapter(BaseAgent):
 
     @staticmethod
     def _extract_commands(task: Task) -> list[str]:
-        """Extract commands from available task fields."""
-        commands: list[str] = []
+        """
+        Extract commands in priority order:
+          1. task.inputs.commands (primary — set by AIL handoff)
+          2. task.inputs.context["commands"] (fallback)
+          3. task.steps[].action (last resort)
+        """
+        if task.inputs.commands:
+            logger.info("[OpenClaw] Source: task.inputs.commands")
+            return list(task.inputs.commands)
 
         ctx_commands = task.inputs.context.get("commands")
-        if isinstance(ctx_commands, list):
-            commands.extend(str(c) for c in ctx_commands if c)
-            if commands:
-                return commands
+        if isinstance(ctx_commands, list) and ctx_commands:
+            logger.info("[OpenClaw] Source: task.inputs.context['commands'] (fallback)")
+            return [str(c) for c in ctx_commands if c]
 
+        commands: list[str] = []
         for step in task.steps:
             if step.agent != AgentName.OPENCLAW:
                 continue
@@ -75,4 +82,6 @@ class OpenClawAdapter(BaseAgent):
             elif action.strip():
                 commands.append(action.strip())
 
+        if commands:
+            logger.info("[OpenClaw] Source: task.steps (last resort)")
         return commands

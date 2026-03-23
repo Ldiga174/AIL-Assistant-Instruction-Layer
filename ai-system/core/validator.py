@@ -16,9 +16,11 @@ from __future__ import annotations
 import logging
 
 from agents.shared.models import (
+    AgentName,
     AgentResult,
     ResultStatus,
     Task,
+    TaskRole,
     ValidationAction,
     ValidationCheck,
     ValidationResult,
@@ -148,3 +150,89 @@ class Validator:
         if task.retry_count < task.max_retries:
             return ValidationAction.RETRY
         return ValidationAction.ABORT
+
+    def validate_handoff(
+        self, task: Task, results: list[AgentResult]
+    ) -> ValidationResult:
+        """
+        For hybrid tasks: verify that commands produced by OpenCode
+        were actually received and executed by OpenClaw.
+        """
+        checks: list[ValidationCheck] = []
+
+        if task.role != TaskRole.HYBRID:
+            checks.append(ValidationCheck(
+                check_name="handoff",
+                check_type="generic",
+                passed=True,
+                message="N/A (not a hybrid task)",
+            ))
+            return ValidationResult(
+                task_id=task.task_id, passed=True, checks=checks
+            )
+
+        opencode_result = None
+        openclaw_result = None
+        for r in results:
+            if r.agent == AgentName.OPENCODE:
+                opencode_result = r
+            elif r.agent == AgentName.OPENCLAW:
+                openclaw_result = r
+
+        if not opencode_result or not openclaw_result:
+            checks.append(ValidationCheck(
+                check_name="handoff_agents_present",
+                check_type="generic",
+                passed=False,
+                message="Missing OpenCode or OpenClaw result for hybrid task",
+            ))
+            return ValidationResult(
+                task_id=task.task_id,
+                passed=False,
+                checks=checks,
+                action=ValidationAction.RETRY,
+            )
+
+        produced = set(opencode_result.artifacts.commands)
+        injected = set(task.inputs.commands)
+        checks.append(ValidationCheck(
+            check_name="handoff_commands_injected",
+            check_type="generic",
+            passed=produced == injected,
+            message=(
+                f"Injected {len(injected)} command(s) match OpenCode output"
+                if produced == injected
+                else f"Mismatch: OpenCode={list(produced)}, injected={list(injected)}"
+            ),
+        ))
+
+        executed_cmds: set[str] = set()
+        for cr in openclaw_result.artifacts.outputs.get("commands_executed", []):
+            if isinstance(cr, dict) and cr.get("allowed", False):
+                executed_cmds.add(cr["command"])
+
+        received = produced & executed_cmds
+        checks.append(ValidationCheck(
+            check_name="handoff_commands_executed",
+            check_type="generic",
+            passed=bool(received),
+            message=(
+                f"OpenClaw executed {len(received)}/{len(produced)} handed-off command(s)"
+                if received
+                else "OpenClaw did not execute any of the handed-off commands"
+            ),
+        ))
+
+        all_passed = all(c.passed for c in checks)
+
+        logger.info(
+            "Handoff validation %s: passed=%s (%d checks)",
+            task.task_id, all_passed, len(checks),
+        )
+
+        return ValidationResult(
+            task_id=task.task_id,
+            passed=all_passed,
+            checks=checks,
+            action=ValidationAction.ACCEPT if all_passed else ValidationAction.RETRY,
+        )

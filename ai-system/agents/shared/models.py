@@ -64,6 +64,7 @@ class TaskInputs:
     constraints: list[str] = field(default_factory=list)
     context: dict[str, Any] = field(default_factory=dict)
     files: list[str] = field(default_factory=list)
+    commands: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -99,6 +100,7 @@ class Task:
                 "constraints": self.inputs.constraints,
                 "context": self.inputs.context,
                 "files": self.inputs.files,
+                "commands": self.inputs.commands,
             },
             "expected_output": self.expected_output,
             "steps": [
@@ -121,7 +123,7 @@ class Task:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Task:
         inputs_raw = data.get("inputs", {})
-        known_input_keys = {"repo", "constraints", "context", "files"}
+        known_input_keys = {"repo", "constraints", "context", "files", "commands"}
         extra = {k: v for k, v in inputs_raw.items() if k not in known_input_keys}
         context = dict(inputs_raw.get("context", {}))
         context.update(extra)
@@ -130,6 +132,7 @@ class Task:
             constraints=inputs_raw.get("constraints", []),
             context=context,
             files=inputs_raw.get("files", []),
+            commands=inputs_raw.get("commands", []),
         )
         steps = [
             TaskStep(
