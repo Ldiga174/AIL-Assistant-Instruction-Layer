@@ -52,5 +52,23 @@ out/
 *.tmp
 *.temp
 
-# PM2 ecosystem files (optional - если хотите их не коммитить)
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+*.egg
+
+# AIL runtime (task files are generated at runtime)
+ai-system/tasks/incoming/*.json
+ai-system/tasks/running/*.json
+ai-system/tasks/failed/*.json
+ai-system/tasks/done/*.json
+ai-system/logs/sessions/*.md
+ai-system/logs/tasks/*.md
+!ai-system/tasks/**/.gitkeep
+!ai-system/logs/**/.gitkeep
+
+# PM2 ecosystem files (optional)
 # ecosystem.config.js 

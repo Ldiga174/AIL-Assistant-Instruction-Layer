@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AIL Task Contract",
+  "description": "Schema for tasks dispatched by AIL to agents (OpenCode / OpenClaw)",
+  "type": "object",
+  "required": ["task_id", "goal", "role", "status"],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^task-[0-9]{3,}$",
+      "description": "Unique task identifier"
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable goal of the task"
+    },
+    "role": {
+      "type": "string",
+      "enum": ["code", "exec", "hybrid"],
+      "description": "Task type: code (OpenCode), exec (OpenClaw), hybrid (both)"
+    },
+    "inputs": {
+      "type": "object",
+      "properties": {
+        "repo": {
+          "type": "string",
+          "description": "Path to the target repository or project"
+        },
+        "constraints": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of constraints the agent must respect"
+        },
+        "context": {
+          "type": "object",
+          "description": "Arbitrary context data for the agent"
+        },
+        "files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Specific files to operate on"
+        }
+      },
+      "additionalProperties": true
+    },
+    "expected_output": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of expected output artifact types"
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["step_id", "action", "agent"],
+        "properties": {
+          "step_id": { "type": "string" },
+          "action": { "type": "string" },
+          "agent": { "type": "string", "enum": ["opencode", "openclaw"] },
+          "depends_on": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "description": "Ordered list of execution steps"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "assigned", "running", "validating", "done", "failed", "retrying"],
+      "description": "Current task lifecycle status"
+    },
+    "assigned_to": {
+      "type": "string",
+      "enum": ["opencode", "openclaw"],
+      "description": "Which agent is currently assigned"
+    },
+    "retry_count": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0
+    },
+    "max_retries": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 3
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}

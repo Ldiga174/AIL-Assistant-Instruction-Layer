@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AIL Validation Contract",
+  "description": "Schema for validation results produced by AIL after checking agent output",
+  "type": "object",
+  "required": ["task_id", "validated_by", "passed", "checks"],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^task-[0-9]{3,}$"
+    },
+    "validated_by": {
+      "type": "string",
+      "const": "ail",
+      "description": "Always 'ail' — only AIL validates results"
+    },
+    "passed": {
+      "type": "boolean",
+      "description": "Overall validation result"
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["check_name", "passed"],
+        "properties": {
+          "check_name": {
+            "type": "string",
+            "description": "Name of the check (e.g. 'files_exist', 'service_up')"
+          },
+          "check_type": {
+            "type": "string",
+            "enum": ["code", "exec", "ui", "deploy", "generic"],
+            "description": "Category of the validation check"
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "expected": {
+            "description": "What was expected"
+          },
+          "actual": {
+            "description": "What was actually found"
+          }
+        }
+      },
+      "description": "Individual validation checks"
+    },
+    "action": {
+      "type": "string",
+      "enum": ["accept", "retry", "escalate", "abort"],
+      "description": "Decision by AIL based on validation outcome"
+    },
+    "validated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}

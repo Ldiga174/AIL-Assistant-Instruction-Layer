@@ -1,120 +1,172 @@
-# 🤖 AIL — Assistant Initialization Logic
+# AIL — Assistant Instruction Layer
 
-**AIL** is a minimal yet powerful template for automating project initialization using AI (e.g., Cursor). It provides structure, logs actions, verifies environment, and restores context seamlessly.
+Трёхуровневая система управления AI-агентами для автоматизации разработки и операций.
 
----
-
-## 🔍 Project Purpose
-
-AIL is not just a repository. It's a **logic template** that any AI assistant should follow when starting a project:
-
-* Entry point is `project.init.md`
-* Pre-launch checks are in `prestart.checklist`
-* Logs go into `ailog.md`
-* Tasks are managed in `task.todo.json`
-* Behavior rules are set in `ai.meta.json`
-
----
-
-## 🧩 Project Structure
+## Архитектура
 
 ```
-/aiproject/
-├── project.init.md        # Entry point
-├── prestart.checklist     # Pre-launch checks
-├── ailog.md               # AI action log
-├── task.todo.json         # Current tasks
-├── ai.meta.json           # Cursor behavior rules
-├── snapshot.success.md    # Successful session snapshot
-├── app.js                 # Node.js server
-├── package.json           # Project dependencies
-├── ecosystem.config.js    # PM2 configuration
-└── logs/                  # Logs directory
+┌─────────────────────────────────────────────────────┐
+│                     OWNER                           │
+│        (ставит цель, утверждает результат)          │
+└──────────────────────┬──────────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────────┐
+│                AIL / President                       │
+│  ┌──────────┐ ┌────────┐ ┌───────────┐ ┌────────┐  │
+│  │ Planner  │ │ Router │ │ Validator │ │ Memory │  │
+│  └──────────┘ └────────┘ └───────────┘ └────────┘  │
+│         Единственная точка принятия решений          │
+└───────────┬─────────────────────┬───────────────────┘
+            │                     │
+┌───────────▼──────────┐ ┌───────▼────────────────────┐
+│     OpenCode         │ │       OpenClaw              │
+│   (программист)      │ │  (операционный исполнитель) │
+│                      │ │                             │
+│ • анализ кодовой базы│ │ • выполнение команд ОС     │
+│ • создание кода      │ │ • запуск сборки/тестов     │
+│ • исправление багов  │ │ • деплой                   │
+│ • подготовка команд  │ │ • проверка результата      │
+└──────────────────────┘ └─────────────────────────────┘
 ```
 
----
+## Принцип
 
-## 🚀 How to Run the Project
+> **OpenCode** не выполняет системные команды.
+> **OpenClaw** не определяет стратегию.
+> **AIL** управляет обоими и остаётся единственной точкой принятия решений.
 
-### 🖥️ 1. Install dependencies
+## Типы задач
+
+| Тип | Описание | Агент |
+|-----|----------|-------|
+| `code` | Написание/изменение кода, проектирование | OpenCode |
+| `exec` | Команды ОС, деплой, запуск сервисов | OpenClaw |
+| `hybrid` | Код + операции (сборка + деплой) | Оба |
+
+## Жизненный цикл задачи
+
+```
+1. Owner формулирует цель
+2. AIL создаёт task_id и классифицирует: code / exec / hybrid
+3. AIL создаёт план шагов
+4. AIL отправляет шаги агентам (OpenCode / OpenClaw)
+5. Агенты возвращают структурированный результат
+6. AIL валидирует результат
+7. При ошибке — цикл исправления (до max_retries)
+8. При успехе — задача завершена
+```
+
+## Структура проекта
+
+```
+ai-system/
+├── project.init.md          — описание архитектуры
+├── .env.example             — пример конфигурации
+├── logs/                    — логи выполнения
+│   ├── ailog.md
+│   ├── sessions/
+│   └── tasks/
+├── state/                   — runtime-состояние
+│   ├── task.todo.json
+│   ├── agents.state.json
+│   └── routing.state.json
+├── contracts/               — JSON-схемы контрактов
+│   ├── task.schema.json
+│   ├── result.schema.json
+│   └── validation.schema.json
+├── core/                    — ядро AIL
+│   ├── ail_controller.py    — главный контроллер (President)
+│   ├── router.py            — маршрутизация задач
+│   ├── validator.py         — валидация результатов
+│   ├── planner.py           — планирование шагов
+│   └── memory.py            — управление состоянием
+├── agents/                  — агенты-исполнители
+│   ├── opencode/            — программист
+│   │   ├── adapter.py
+│   │   ├── executor.py
+│   │   └── prompts/
+│   ├── openclaw/            — оператор
+│   │   ├── adapter.py
+│   │   ├── executor.py
+│   │   └── prompts/
+│   └── shared/              — общая база
+│       ├── base_agent.py
+│       └── models.py
+├── tasks/                   — жизненный цикл задач
+│   ├── incoming/
+│   ├── running/
+│   ├── failed/
+│   └── done/
+├── validations/             — модули проверки
+│   ├── code_checks.py
+│   ├── ui_checks.py
+│   └── deploy_checks.py
+└── scripts/                 — CLI-скрипты
+    ├── run_task.py
+    ├── replay_task.py
+    └── export_logs.py
+```
+
+## Быстрый старт
 
 ```bash
-npm install -g pm2
-npm install
+cd ai-system
+
+# Запустить задачу
+python scripts/run_task.py "Написать функцию healthcheck" --repo ../
+
+# Запустить задачу с ограничениями
+python scripts/run_task.py "Собрать и задеплоить сайт" --constraint "не ломать api" --repo ../
+
+# Переиграть задачу
+python scripts/replay_task.py tasks/failed/task-00123.json --force
+
+# Экспортировать логи
+python scripts/export_logs.py --output report.md
 ```
 
-### ▶️ 2. Start the server
+## Контракт взаимодействия
 
-```bash
-npm start
-```
-
-### 🔁 3. Run via PM2
-
-```bash
-npm run pm2
-```
-
----
-
-## 🤖 Special Prompt for Cursor
-
-Add this to **User Rules** (via `.cursor/user-rules.json` or Cursor settings):
-
+### Формат задачи
 ```json
-[
-  "Always start from project.init.md",
-  "If the file is missing — suggest creating it",
-  "Before starting tasks — validate prestart.checklist",
-  "If errors found — stop and log into ailog.md",
-  "If ailog.md contains 'Problems' — resolve them first",
-  "If task.todo.json is empty — wait for user input and log it",
-  "If snapshot.success.md exists — use it to understand expected state",
-  "Always summarize the session in ailog.md (what was done, what remains)"
-]
+{
+  "task_id": "task-00001",
+  "goal": "Собрать и задеплоить сайт",
+  "role": "hybrid",
+  "inputs": {
+    "repo": "./project",
+    "constraints": ["не ломать существующий api"]
+  },
+  "expected_output": ["updated_files", "run_commands", "summary"],
+  "status": "pending"
+}
 ```
 
----
+### Формат результата
+```json
+{
+  "task_id": "task-00001",
+  "agent": "opencode",
+  "status": "success",
+  "artifacts": {
+    "files_changed": ["app/main.py", "docker-compose.yml"],
+    "commands": ["docker compose up -d --build"]
+  },
+  "notes": "Добавлен endpoint healthcheck",
+  "errors": []
+}
+```
 
-## 📸 Successful Session Snapshot
+## Первый практический этап
 
-See [`snapshot.success.md`](./snapshot.success.md) — shows an ideal state after a successful session.
-
----
-
-## 📚 License
-
-MIT — free to use, adapt, fork, and improve. Share your variations and help improve the ecosystem.
-
----
-
-🧠 *Created with love for logic and AI 💡*
-
-👤 **Creator:** Lebedev Rodion
-📬 **Telegram:** [@Ldiga](https://t.me/Ldiga)
-
-Если хотите поддержать:
-
-USDT (TRC20): TKmwpkDZiVf1gshTR2rf8nA6vGihG1HUMn
-
-BTC: bc1qz9ccgaqw6mdhzgm4z5hv4q43mesv7nzn3qvpyq
-
-DOGE: DNowS8oXMk7tuGDN4bM4sZCor6huXx1C2U
-
----
-
-## 📝 Дополнение на русском
-
-### Назначение
-
-Этот шаблон помогает автоматизировать запуск проектов с AI, структурировать работу, отслеживать прогресс и не терять задачи между сессиями.
-
-### Что делает AI:
-
-* Стартует с `project.init.md`
-* Проверяет `prestart.checklist` перед запуском
-* Записывает действия в `ailog.md`
-* Работает с задачами в `task.todo.json`
-* Использует `snapshot.success.md` для восстановления состояния
-
-Подходит для любых AI-ассистентов, включая Cursor.
+Реализовано минимальное ядро:
+- [x] AIL Controller (President)
+- [x] Router (маршрутизация code/exec/hybrid)
+- [x] Planner (классификация и планирование)
+- [x] Validator (проверка результатов)
+- [x] Memory (состояние и логирование)
+- [x] OpenCode adapter + executor
+- [x] OpenClaw adapter + executor
+- [x] JSON-контракты (task, result, validation)
+- [x] Базовая валидация (code, ui, deploy)
+- [x] CLI-скрипты (run, replay, export)
