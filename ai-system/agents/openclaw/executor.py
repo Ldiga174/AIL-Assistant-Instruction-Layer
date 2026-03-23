@@ -5,12 +5,12 @@ Executes only allowlisted commands via subprocess (shell=False).
 Returns structured CommandResult per command with exit_code, stdout,
 stderr, duration_ms.
 
-Security model:
-  - Allowlist of permitted binary names
-  - Blocklist of dangerous patterns (rm -rf, sudo, reboot, etc.)
-  - Shell operators blocked (;, &&, ||, |, >, >>, backticks, $())
-  - All commands run via shlex.split + subprocess (no shell=True)
-  - Per-command timeout
+Security:
+  - Allowlist of permitted binary names (18 total)
+  - Shell operators blocked (;, &&, ||, |, >, >>, <, backticks, $())
+  - Blocklist patterns (sudo, shutdown, reboot, mkfs, forkbomb)
+  - All commands run via shlex.split + subprocess.run(shell=False)
+  - Per-command timeout (default 20s)
 """
 
 from __future__ import annotations
@@ -34,9 +34,9 @@ from agents.shared.models import (
 
 logger = logging.getLogger(__name__)
 
-COMMAND_TIMEOUT_S = int(os.environ.get("OPENCLAW_TIMEOUT", "60"))
+COMMAND_TIMEOUT_S = int(os.environ.get("OPENCLAW_TIMEOUT", "20"))
 
-# ── Allowlist: only these binaries are permitted ──────────────────────────
+# ── Allowlist ─────────────────────────────────────────────────────────────
 
 ALLOWED_BINARIES: set[str] = {
     "python", "python3",
@@ -49,7 +49,7 @@ ALLOWED_BINARIES: set[str] = {
     "mkdir", "cp", "mv",
 }
 
-# ── Blocklist: these patterns are always rejected ─────────────────────────
+# ── Blocked patterns (caught before allowlist check) ──────────────────────
 
 BLOCKED_PATTERNS: list[str] = [
     "sudo ",
@@ -77,93 +77,78 @@ class OpenClawExecutor:
     """
     Safe shell executor.
 
-    Runs allowlisted commands via subprocess.run(shell=False).
-    Returns per-command structured results.
+    Public API:
+      - is_command_allowed(command) -> (bool, reason | None)
+      - run_command(command, cwd, timeout) -> CommandResult
+      - execute(task, commands) -> AgentResult
     """
 
-    def run(self, task: Task, commands: list[str]) -> AgentResult:
+    # ── 1. Check ──────────────────────────────────────────────────────────
+
+    @staticmethod
+    def is_command_allowed(command: str) -> tuple[bool, str | None]:
         """
-        Execute a list of commands and return structured AgentResult.
+        Check if a command is safe to execute.
 
-        Args:
-            task: The AIL task being executed.
-            commands: List of shell command strings to run.
+        Returns:
+            (True, None) if allowed.
+            (False, "reason") if blocked.
         """
-        cwd = Path(task.inputs.repo).resolve()
-        if not cwd.is_dir():
-            cwd = Path.cwd()
-            logger.warning("[OpenClaw] repo %s not found, using cwd %s", task.inputs.repo, cwd)
+        for pattern in BLOCKED_PATTERNS:
+            if pattern in command:
+                return False, f"blocked pattern: '{pattern}'"
 
-        command_results: list[CommandResult] = []
-        errors: list[ErrorInfo] = []
-        notes_parts: list[str] = []
+        for op in BLOCKED_SHELL_OPERATORS:
+            if op in command:
+                return False, f"shell operator: '{op}'"
 
-        for cmd in commands:
-            cr = self._execute_one(cmd, cwd)
-            command_results.append(cr)
+        try:
+            args = shlex.split(command)
+        except ValueError:
+            return False, "unparseable command"
 
-            if not cr.allowed:
-                errors.append(ErrorInfo(
-                    message=f"BLOCKED: {cmd}",
-                    code="CMD_BLOCKED",
-                    details="Command not in allowlist or contains blocked pattern",
-                ))
-                notes_parts.append(f"`{cmd}` — BLOCKED")
-            elif cr.exit_code != 0:
-                errors.append(ErrorInfo(
-                    message=f"Command failed (exit {cr.exit_code}): {cmd}",
-                    code="CMD_FAILED",
-                    details=cr.stderr[:500] if cr.stderr else cr.stdout[:500],
-                ))
-                notes_parts.append(f"`{cmd}` — FAILED (exit {cr.exit_code})")
-            else:
-                notes_parts.append(f"`{cmd}` — OK ({cr.duration_ms}ms)")
+        if not args:
+            return False, "empty command"
 
-        has_failures = any(e.code in ("CMD_FAILED", "CMD_BLOCKED") for e in errors)
-        all_blocked = all(not cr.allowed for cr in command_results) if command_results else False
+        binary = os.path.basename(args[0])
 
-        if all_blocked:
-            status = ResultStatus.ERROR
-        elif has_failures:
-            status = ResultStatus.PARTIAL
-        else:
-            status = ResultStatus.SUCCESS
+        if binary not in ALLOWED_BINARIES:
+            return False, f"'{binary}' not in allowlist"
 
-        return AgentResult(
-            task_id=task.task_id,
-            agent=AgentName.OPENCLAW,
-            status=status,
-            artifacts=Artifacts(
-                commands=[cr.command for cr in command_results if cr.allowed],
-                outputs={
-                    "commands_executed": [cr.to_dict() for cr in command_results],
-                },
-            ),
-            notes="exec step complete; " + "; ".join(notes_parts),
-            errors=errors,
-        )
+        return True, None
 
-    def _execute_one(self, cmd: str, cwd: Path) -> CommandResult:
-        """Validate and execute a single command."""
+    # ── 2. Run one command ────────────────────────────────────────────────
 
-        blocked_reason = self._check_safety(cmd)
-        if blocked_reason:
-            logger.warning("[OpenClaw] BLOCKED: %s (%s)", cmd, blocked_reason)
+    def run_command(
+        self,
+        command: str,
+        cwd: str | None = None,
+        timeout: int = COMMAND_TIMEOUT_S,
+    ) -> CommandResult:
+        """
+        Validate and execute a single shell command.
+
+        Returns CommandResult with exit_code, stdout, stderr, duration_ms.
+        Blocked commands get allowed=False without execution.
+        """
+        allowed, reason = self.is_command_allowed(command)
+
+        if not allowed:
+            logger.warning("[OpenClaw] BLOCKED: %s (%s)", command, reason)
             return CommandResult(
-                command=cmd,
+                command=command,
                 exit_code=-1,
                 stdout="",
-                stderr=f"BLOCKED: {blocked_reason}",
+                stderr=f"BLOCKED: {reason}",
                 duration_ms=0,
                 allowed=False,
             )
 
         try:
-            args = shlex.split(cmd)
+            args = shlex.split(command)
         except ValueError as exc:
-            logger.warning("[OpenClaw] Cannot parse command: %s (%s)", cmd, exc)
             return CommandResult(
-                command=cmd,
+                command=command,
                 exit_code=-1,
                 stdout="",
                 stderr=f"Parse error: {exc}",
@@ -171,54 +156,55 @@ class OpenClawExecutor:
                 allowed=False,
             )
 
-        logger.info("[OpenClaw] RUN: %s (cwd=%s)", cmd, cwd)
+        work_dir = cwd or os.getcwd()
+        logger.info("[OpenClaw] RUN: %s (cwd=%s)", command, work_dir)
         t0 = time.monotonic()
 
         try:
             proc = subprocess.run(
                 args,
-                cwd=str(cwd),
+                cwd=work_dir,
                 capture_output=True,
                 text=True,
-                timeout=COMMAND_TIMEOUT_S,
+                timeout=timeout,
             )
             duration = int((time.monotonic() - t0) * 1000)
 
-            stdout = proc.stdout.strip()
-            stderr = proc.stderr.strip()
-
             if proc.returncode == 0:
-                logger.info("[OpenClaw] OK: %s (exit 0, %dms)", cmd, duration)
+                logger.info("[OpenClaw] OK: %s (exit 0, %dms)", command, duration)
             else:
-                logger.warning("[OpenClaw] FAIL: %s (exit %d, %dms)", cmd, proc.returncode, duration)
+                logger.warning(
+                    "[OpenClaw] FAIL: %s (exit %d, %dms)",
+                    command, proc.returncode, duration,
+                )
 
             return CommandResult(
-                command=cmd,
+                command=command,
                 exit_code=proc.returncode,
-                stdout=stdout[:5000],
-                stderr=stderr[:5000],
+                stdout=proc.stdout.strip()[:5000],
+                stderr=proc.stderr.strip()[:5000],
                 duration_ms=duration,
                 allowed=True,
             )
 
         except subprocess.TimeoutExpired:
             duration = int((time.monotonic() - t0) * 1000)
-            logger.error("[OpenClaw] TIMEOUT: %s (%dms)", cmd, duration)
+            logger.error("[OpenClaw] TIMEOUT: %s (%dms)", command, duration)
             return CommandResult(
-                command=cmd,
+                command=command,
                 exit_code=-1,
                 stdout="",
-                stderr=f"Timeout after {COMMAND_TIMEOUT_S}s",
+                stderr=f"Timeout after {timeout}s",
                 duration_ms=duration,
                 allowed=True,
             )
 
         except FileNotFoundError:
             duration = int((time.monotonic() - t0) * 1000)
-            binary = shlex.split(cmd)[0] if cmd else cmd
+            binary = args[0] if args else command
             logger.error("[OpenClaw] NOT FOUND: %s", binary)
             return CommandResult(
-                command=cmd,
+                command=command,
                 exit_code=127,
                 stdout="",
                 stderr=f"Command not found: {binary}",
@@ -228,9 +214,9 @@ class OpenClawExecutor:
 
         except Exception as exc:
             duration = int((time.monotonic() - t0) * 1000)
-            logger.error("[OpenClaw] ERROR: %s — %s", cmd, exc)
+            logger.error("[OpenClaw] ERROR: %s — %s", command, exc)
             return CommandResult(
-                command=cmd,
+                command=command,
                 exit_code=-1,
                 stdout="",
                 stderr=str(exc),
@@ -238,30 +224,80 @@ class OpenClawExecutor:
                 allowed=True,
             )
 
+    # ── 3. Execute all commands ───────────────────────────────────────────
+
+    def execute(self, task: Task, commands: list[str]) -> AgentResult:
+        """
+        Run a list of commands and return structured AgentResult.
+
+        Status logic:
+          - success: all allowed commands exited 0
+          - partial: some OK, some failed/blocked
+          - error:   all blocked or all failed
+        """
+        cwd = Path(task.inputs.repo).resolve()
+        if not cwd.is_dir():
+            cwd = Path.cwd()
+            logger.warning("[OpenClaw] repo not found, using cwd: %s", cwd)
+
+        results: list[CommandResult] = []
+        errors: list[ErrorInfo] = []
+        notes_parts: list[str] = []
+
+        for cmd in commands:
+            cr = self.run_command(cmd, cwd=str(cwd))
+            results.append(cr)
+
+            if not cr.allowed:
+                errors.append(ErrorInfo(
+                    message=f"BLOCKED: {cmd}",
+                    code="CMD_BLOCKED",
+                    details=cr.stderr,
+                ))
+                notes_parts.append(f"`{cmd}` — BLOCKED")
+            elif cr.exit_code != 0:
+                errors.append(ErrorInfo(
+                    message=f"Failed (exit {cr.exit_code}): {cmd}",
+                    code="CMD_FAILED",
+                    details=cr.stderr[:500] if cr.stderr else cr.stdout[:500],
+                ))
+                notes_parts.append(f"`{cmd}` — FAILED (exit {cr.exit_code})")
+            else:
+                notes_parts.append(f"`{cmd}` — OK ({cr.duration_ms}ms)")
+
+        status = self._determine_status(results, errors)
+
+        return AgentResult(
+            task_id=task.task_id,
+            agent=AgentName.OPENCLAW,
+            status=status,
+            artifacts=Artifacts(
+                commands=[cr.command for cr in results if cr.allowed],
+                outputs={
+                    "commands_executed": [cr.to_dict() for cr in results],
+                },
+            ),
+            notes="exec step complete; " + "; ".join(notes_parts),
+            errors=errors,
+        )
+
     @staticmethod
-    def _check_safety(cmd: str) -> str | None:
-        """
-        Return a rejection reason if the command is unsafe, or None if OK.
-        """
-        for pattern in BLOCKED_PATTERNS:
-            if pattern in cmd:
-                return f"matches blocked pattern: '{pattern}'"
+    def _determine_status(
+        results: list[CommandResult], errors: list[ErrorInfo]
+    ) -> ResultStatus:
+        if not results:
+            return ResultStatus.ERROR
 
-        for op in BLOCKED_SHELL_OPERATORS:
-            if op in cmd:
-                return f"contains shell operator: '{op}'"
+        all_blocked = all(not cr.allowed for cr in results)
+        if all_blocked:
+            return ResultStatus.ERROR
 
-        try:
-            args = shlex.split(cmd)
-        except ValueError:
-            return "unparseable command"
+        all_ok = all(cr.allowed and cr.exit_code == 0 for cr in results)
+        if all_ok:
+            return ResultStatus.SUCCESS
 
-        if not args:
-            return "empty command"
+        any_ok = any(cr.allowed and cr.exit_code == 0 for cr in results)
+        if any_ok:
+            return ResultStatus.PARTIAL
 
-        binary = os.path.basename(args[0])
-
-        if binary not in ALLOWED_BINARIES:
-            return f"binary '{binary}' not in allowlist"
-
-        return None
+        return ResultStatus.ERROR

@@ -53,7 +53,7 @@ class OpenClawAdapter(BaseAgent):
             )
 
         logger.info("[OpenClaw] Extracted %d command(s): %s", len(commands), commands)
-        return self.executor.run(task, commands)
+        return self.executor.execute(task, commands)
 
     @staticmethod
     def _extract_commands(task: Task) -> list[str]:
