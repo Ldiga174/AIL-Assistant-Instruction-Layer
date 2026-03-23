@@ -168,33 +168,56 @@ class MockTransport(LLMTransport):
             elif line.startswith("Repo:"):
                 repo = line[len("Repo:"):].strip()
 
-        files = self._infer_files(goal, repo)
+        files_to_write = self._infer_files_to_write(goal)
+        files_changed = [fw["path"] for fw in files_to_write]
         commands = self._infer_commands(goal)
 
         result = {
             "status": "success",
             "artifacts": {
-                "files_changed": files,
+                "files_changed": files_changed,
                 "commands": commands,
             },
+            "files_to_write": files_to_write,
             "notes": f"[mock] Processed: {goal}",
             "errors": [],
         }
         return json.dumps(result, ensure_ascii=False)
 
     @staticmethod
-    def _infer_files(goal: str, repo: str) -> list[str]:
+    def _infer_files_to_write(goal: str) -> list[dict]:
         goal_lower = goal.lower()
-        files = []
+        files: list[dict] = []
         if "endpoint" in goal_lower or "api" in goal_lower or "health" in goal_lower:
-            files.append(f"{repo}/src/api/endpoints.py")
-            files.append(f"{repo}/src/api/routes.py")
+            files.append({
+                "path": "src/api.py",
+                "content": (
+                    "from fastapi import FastAPI\n\n"
+                    "app = FastAPI()\n\n\n"
+                    "@app.get('/health')\n"
+                    "def health():\n"
+                    "    return {'status': 'ok'}\n"
+                ),
+                "mode": "create",
+            })
         if "config" in goal_lower or "конфиг" in goal_lower:
-            files.append(f"{repo}/config/settings.py")
+            files.append({
+                "path": "config/settings.py",
+                "content": "HOST = '0.0.0.0'\nPORT = 8000\nDEBUG = True\n",
+                "mode": "create",
+            })
         if "test" in goal_lower or "тест" in goal_lower:
-            files.append(f"{repo}/tests/test_main.py")
+            files.append({
+                "path": "tests/test_main.py",
+                "content": "def test_placeholder():\n    assert True\n",
+                "mode": "create",
+            })
         if not files:
-            files.append(f"{repo}/src/main.py")
+            files.append({
+                "path": "src/main.py",
+                "content": "print('hello')\n",
+                "mode": "create",
+            })
         return files
 
     @staticmethod

@@ -151,6 +151,80 @@ class Validator:
             return ValidationAction.RETRY
         return ValidationAction.ABORT
 
+    def validate_files_applied(self, task: Task) -> ValidationResult:
+        """
+        For tasks where FileApplier was used: verify files are actually on disk,
+        within repo bounds, and non-empty.
+        """
+        from pathlib import Path
+
+        applied = task.inputs.context.get("files_applied", [])
+        if not applied:
+            return ValidationResult(
+                task_id=task.task_id, passed=True,
+                checks=[ValidationCheck(
+                    check_name="files_applied",
+                    check_type="code",
+                    passed=True,
+                    message="N/A (no files to apply)",
+                )],
+            )
+
+        repo_root = Path(task.inputs.repo).resolve()
+        checks: list[ValidationCheck] = []
+
+        for fa in applied:
+            fpath = fa.get("path", "")
+            status = fa.get("status", "")
+
+            if status != "written":
+                checks.append(ValidationCheck(
+                    check_name=f"file_applied:{fpath}",
+                    check_type="code",
+                    passed=status == "skipped",
+                    message=f"status={status}: {fa.get('message', '')}",
+                ))
+                continue
+
+            full = (repo_root / fpath).resolve()
+
+            in_bounds = str(full).startswith(str(repo_root))
+            checks.append(ValidationCheck(
+                check_name=f"file_in_repo:{fpath}",
+                check_type="code",
+                passed=in_bounds,
+                message="within repo" if in_bounds else f"ESCAPES repo: {full}",
+            ))
+
+            exists = full.exists()
+            checks.append(ValidationCheck(
+                check_name=f"file_exists:{fpath}",
+                check_type="code",
+                passed=exists,
+                message="exists on disk" if exists else "MISSING after apply",
+            ))
+
+            if exists:
+                size = full.stat().st_size
+                checks.append(ValidationCheck(
+                    check_name=f"file_nonempty:{fpath}",
+                    check_type="code",
+                    passed=size > 0,
+                    message=f"{size} bytes" if size > 0 else "file is empty",
+                ))
+
+        all_passed = all(c.passed for c in checks)
+        logger.info(
+            "Files-applied validation %s: passed=%s (%d checks)",
+            task.task_id, all_passed, len(checks),
+        )
+        return ValidationResult(
+            task_id=task.task_id,
+            passed=all_passed,
+            checks=checks,
+            action=ValidationAction.ACCEPT if all_passed else ValidationAction.RETRY,
+        )
+
     def validate_handoff(
         self, task: Task, results: list[AgentResult]
     ) -> ValidationResult:

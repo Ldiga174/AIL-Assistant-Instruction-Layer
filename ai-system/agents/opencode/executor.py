@@ -25,6 +25,7 @@ from agents.shared.models import (
     AgentResult,
     Artifacts,
     ErrorInfo,
+    FileWrite,
     ResultStatus,
     Task,
 )
@@ -129,7 +130,19 @@ class OpenCodeExecutor:
             elif isinstance(e, str) and e.strip():
                 errors.append(ErrorInfo(message=e))
 
-        if not notes and not files_changed and not commands:
+        files_to_write_raw = data.get("files_to_write", [])
+        if not isinstance(files_to_write_raw, list):
+            files_to_write_raw = []
+        files_to_write = []
+        for fw in files_to_write_raw:
+            if isinstance(fw, dict) and fw.get("path") and fw.get("content"):
+                files_to_write.append(FileWrite(
+                    path=str(fw["path"]),
+                    content=str(fw["content"]),
+                    mode=str(fw.get("mode", "replace")),
+                ))
+
+        if not notes and not files_changed and not commands and not files_to_write:
             notes = "(no content returned by LLM)"
 
         return AgentResult(
@@ -138,6 +151,7 @@ class OpenCodeExecutor:
             status=status,
             artifacts=Artifacts(
                 files_changed=files_changed,
+                files_to_write=files_to_write,
                 commands=commands,
             ),
             notes=notes,

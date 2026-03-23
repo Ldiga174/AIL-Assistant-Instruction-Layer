@@ -175,9 +175,29 @@ class ErrorInfo:
 
 
 @dataclass
+class FileWrite:
+    """A single file write operation produced by OpenCode."""
+    path: str
+    content: str
+    mode: str = "replace"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"path": self.path, "content": self.content, "mode": self.mode}
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> FileWrite:
+        return cls(
+            path=str(data.get("path", "")),
+            content=str(data.get("content", "")),
+            mode=str(data.get("mode", "replace")),
+        )
+
+
+@dataclass
 class Artifacts:
     files_changed: list[str] = field(default_factory=list)
     files_deleted: list[str] = field(default_factory=list)
+    files_to_write: list[FileWrite] = field(default_factory=list)
     commands: list[str] = field(default_factory=list)
     outputs: dict[str, Any] = field(default_factory=dict)
 
@@ -185,6 +205,7 @@ class Artifacts:
         return {
             "files_changed": self.files_changed,
             "files_deleted": self.files_deleted,
+            "files_to_write": [f.to_dict() for f in self.files_to_write],
             "commands": self.commands,
             "outputs": self.outputs,
         }

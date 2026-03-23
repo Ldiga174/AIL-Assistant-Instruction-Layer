@@ -41,6 +41,7 @@ from core.memory import (
     save_routing_state,
     save_task_log,
 )
+from core.file_applier import FileApplier
 from core.planner import Planner
 from core.router import Router
 from core.validator import Validator
@@ -62,6 +63,7 @@ class AILController:
         self.planner = Planner()
         self.router = Router()
         self.validator = Validator()
+        self.file_applier = FileApplier()
         self.agents: dict[AgentName, BaseAgent] = {
             AgentName.OPENCODE: OpenCodeAdapter(),
             AgentName.OPENCLAW: OpenClawAdapter(),
@@ -160,9 +162,37 @@ class AILController:
             )
 
             if agent_name == AgentName.OPENCODE:
+                self._apply_files(task, result)
                 self._handoff_commands(task, result, agents_needed)
 
         return results
+
+    def _apply_files(self, task: Task, opencode_result: AgentResult) -> None:
+        """Apply files produced by OpenCode via the safe FileApplier."""
+        files_to_write = opencode_result.artifacts.files_to_write
+        if not files_to_write:
+            return
+
+        from pathlib import Path
+        repo_root = str(Path(task.inputs.repo).resolve())
+
+        append_log(
+            f"OpenCode produced {len(files_to_write)} file(s) to write: "
+            f"{[fw.path for fw in files_to_write]}"
+        )
+
+        results = self.file_applier.apply(files_to_write, repo_root)
+
+        written = [r for r in results if r.status == "written"]
+        skipped = [r for r in results if r.status == "skipped"]
+        errors = [r for r in results if r.status == "error"]
+
+        append_log(
+            f"FileApplier: {len(written)} written, "
+            f"{len(skipped)} skipped, {len(errors)} errors"
+        )
+
+        task.inputs.context["files_applied"] = [r.to_dict() for r in results]
 
     def _handoff_commands(
         self,
@@ -197,6 +227,10 @@ class AILController:
         for result in results:
             vr = self.validator.validate(task, result)
             summaries.append(vr.to_dict())
+
+        if task.inputs.context.get("files_applied"):
+            files_vr = self.validator.validate_files_applied(task)
+            summaries.append(files_vr.to_dict())
 
         if task.role == TaskRole.HYBRID and len(results) >= 2:
             handoff_vr = self.validator.validate_handoff(task, results)
