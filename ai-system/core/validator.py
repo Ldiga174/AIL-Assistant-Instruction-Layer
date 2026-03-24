@@ -151,6 +151,64 @@ class Validator:
             return ValidationAction.RETRY
         return ValidationAction.ABORT
 
+    def validate_patches_applied(self, task: Task) -> ValidationResult:
+        """
+        For tasks with file_patches: verify patches were applied,
+        target was found, and files are non-empty after patching.
+        """
+        from pathlib import Path
+
+        applied = task.inputs.context.get("patches_applied", [])
+        if not applied:
+            return ValidationResult(
+                task_id=task.task_id, passed=True,
+                checks=[ValidationCheck(
+                    check_name="patches_applied",
+                    check_type="code",
+                    passed=True,
+                    message="N/A (no patches to apply)",
+                )],
+            )
+
+        repo_root = Path(task.inputs.repo).resolve()
+        checks: list[ValidationCheck] = []
+
+        for pa in applied:
+            fpath = pa.get("path", "")
+            mode = pa.get("mode", "")
+            status = pa.get("status", "")
+            msg = pa.get("message", "")
+
+            checks.append(ValidationCheck(
+                check_name=f"patch:{fpath}:{mode}",
+                check_type="code",
+                passed=status == "applied",
+                message=f"{status}: {msg}" if msg else status,
+            ))
+
+            if status == "applied":
+                full = (repo_root / fpath).resolve()
+                if full.exists():
+                    size = full.stat().st_size
+                    checks.append(ValidationCheck(
+                        check_name=f"patched_nonempty:{fpath}",
+                        check_type="code",
+                        passed=size > 0,
+                        message=f"{size} bytes after patch",
+                    ))
+
+        all_passed = all(c.passed for c in checks)
+        logger.info(
+            "Patches validation %s: passed=%s (%d checks)",
+            task.task_id, all_passed, len(checks),
+        )
+        return ValidationResult(
+            task_id=task.task_id,
+            passed=all_passed,
+            checks=checks,
+            action=ValidationAction.ACCEPT if all_passed else ValidationAction.RETRY,
+        )
+
     def validate_file_context(self, task: Task) -> ValidationResult:
         """
         For code/hybrid tasks with requested files:

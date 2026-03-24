@@ -43,6 +43,7 @@ from core.memory import (
 )
 from core.file_applier import FileApplier
 from core.file_reader import FileReader
+from core.patch_applier import PatchApplier
 from core.planner import Planner
 from core.router import Router
 from core.validator import Validator
@@ -66,6 +67,7 @@ class AILController:
         self.validator = Validator()
         self.file_applier = FileApplier()
         self.file_reader = FileReader()
+        self.patch_applier = PatchApplier()
         self.agents: dict[AgentName, BaseAgent] = {
             AgentName.OPENCODE: OpenCodeAdapter(),
             AgentName.OPENCLAW: OpenClawAdapter(),
@@ -188,10 +190,36 @@ class AILController:
             )
 
             if agent_name == AgentName.OPENCODE:
+                self._apply_patches(task, result)
                 self._apply_files(task, result)
                 self._handoff_commands(task, result, agents_needed)
 
         return results
+
+    def _apply_patches(self, task: Task, opencode_result: AgentResult) -> None:
+        """Apply patches produced by OpenCode via the safe PatchApplier."""
+        patches = opencode_result.artifacts.file_patches
+        if not patches:
+            return
+
+        from pathlib import Path
+        repo_root = str(Path(task.inputs.repo).resolve())
+
+        append_log(
+            f"OpenCode produced {len(patches)} patch(es): "
+            f"{[(p.path, p.mode) for p in patches]}"
+        )
+
+        results = self.patch_applier.apply(patches, repo_root)
+
+        applied = [r for r in results if r.status == "applied"]
+        failed = [r for r in results if r.status in ("error", "skipped")]
+
+        append_log(
+            f"PatchApplier: {len(applied)} applied, {len(failed)} failed/skipped"
+        )
+
+        task.inputs.context["patches_applied"] = [r.to_dict() for r in results]
 
     def _apply_files(self, task: Task, opencode_result: AgentResult) -> None:
         """Apply files produced by OpenCode via the safe FileApplier."""
@@ -257,6 +285,10 @@ class AILController:
         if task.inputs.files:
             ctx_vr = self.validator.validate_file_context(task)
             summaries.append(ctx_vr.to_dict())
+
+        if task.inputs.context.get("patches_applied"):
+            patch_vr = self.validator.validate_patches_applied(task)
+            summaries.append(patch_vr.to_dict())
 
         if task.inputs.context.get("files_applied"):
             files_vr = self.validator.validate_files_applied(task)

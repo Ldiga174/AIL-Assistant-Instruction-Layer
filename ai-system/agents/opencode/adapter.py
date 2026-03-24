@@ -179,26 +179,44 @@ class MockTransport(LLMTransport):
     def call(self, system_prompt: str, user_prompt: str) -> str:
         goal = ""
         repo = "."
+        has_context = "=== Existing project files ===" in user_prompt
+        context_files: list[str] = []
         for line in user_prompt.splitlines():
             if line.startswith("Goal:"):
                 goal = line[len("Goal:"):].strip()
             elif line.startswith("Repo:"):
                 repo = line[len("Repo:"):].strip()
+            elif line.startswith("--- ") and line.endswith(" ---") and not line.startswith("--- end"):
+                context_files.append(line[4:-4].strip())
 
-        files_to_write = self._infer_files_to_write(goal)
-        files_changed = [fw["path"] for fw in files_to_write]
         commands = self._infer_commands(goal)
 
-        result = {
-            "status": "success",
-            "artifacts": {
-                "files_changed": files_changed,
-                "commands": commands,
-            },
-            "files_to_write": files_to_write,
-            "notes": f"[mock] Processed: {goal}",
-            "errors": [],
-        }
+        if has_context and context_files:
+            file_patches = self._infer_patches(goal, context_files)
+            result = {
+                "status": "success",
+                "artifacts": {
+                    "files_changed": context_files,
+                    "commands": commands,
+                },
+                "file_patches": file_patches,
+                "notes": f"[mock] Patched: {goal}",
+                "errors": [],
+            }
+        else:
+            files_to_write = self._infer_files_to_write(goal)
+            files_changed = [fw["path"] for fw in files_to_write]
+            result = {
+                "status": "success",
+                "artifacts": {
+                    "files_changed": files_changed,
+                    "commands": commands,
+                },
+                "files_to_write": files_to_write,
+                "notes": f"[mock] Processed: {goal}",
+                "errors": [],
+            }
+
         return json.dumps(result, ensure_ascii=False)
 
     @staticmethod
@@ -236,6 +254,35 @@ class MockTransport(LLMTransport):
                 "mode": "create",
             })
         return files
+
+    @staticmethod
+    def _infer_patches(goal: str, context_files: list[str]) -> list[dict]:
+        """Generate patch operations based on goal and available context files."""
+        patches: list[dict] = []
+        goal_lower = goal.lower()
+        for fpath in context_files:
+            if "api" in fpath and ("health" in goal_lower or "endpoint" in goal_lower or "обновить" in goal_lower):
+                patches.append({
+                    "path": fpath,
+                    "mode": "replace_block",
+                    "target": 'def health():\n    return {"status": "ok"}',
+                    "content": 'def health():\n    return {"status": "ok", "version": "2"}',
+                })
+            elif "main" in fpath:
+                patches.append({
+                    "path": fpath,
+                    "mode": "insert_after",
+                    "target": "print('hello')",
+                    "content": "\nprint('updated')\n",
+                })
+        if not patches and context_files:
+            patches.append({
+                "path": context_files[0],
+                "mode": "insert_before",
+                "target": "\n",
+                "content": "# Updated by OpenCode\n",
+            })
+        return patches
 
     @staticmethod
     def _infer_commands(goal: str) -> list[str]:

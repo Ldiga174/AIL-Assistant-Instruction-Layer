@@ -194,10 +194,35 @@ class FileWrite:
 
 
 @dataclass
+class FilePatch:
+    """A single patch operation on an existing file."""
+    path: str
+    mode: str
+    target: str
+    content: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "path": self.path, "mode": self.mode,
+            "target": self.target, "content": self.content,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> FilePatch:
+        return cls(
+            path=str(data.get("path", "")),
+            mode=str(data.get("mode", "replace_block")),
+            target=str(data.get("target", "")),
+            content=str(data.get("content", "")),
+        )
+
+
+@dataclass
 class Artifacts:
     files_changed: list[str] = field(default_factory=list)
     files_deleted: list[str] = field(default_factory=list)
     files_to_write: list[FileWrite] = field(default_factory=list)
+    file_patches: list[FilePatch] = field(default_factory=list)
     commands: list[str] = field(default_factory=list)
     outputs: dict[str, Any] = field(default_factory=dict)
 
@@ -206,6 +231,7 @@ class Artifacts:
             "files_changed": self.files_changed,
             "files_deleted": self.files_deleted,
             "files_to_write": [f.to_dict() for f in self.files_to_write],
+            "file_patches": [p.to_dict() for p in self.file_patches],
             "commands": self.commands,
             "outputs": self.outputs,
         }
