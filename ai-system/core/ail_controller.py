@@ -42,6 +42,7 @@ from core.memory import (
     save_task_log,
 )
 from core.file_applier import FileApplier
+from core.file_reader import FileReader
 from core.planner import Planner
 from core.router import Router
 from core.validator import Validator
@@ -64,6 +65,7 @@ class AILController:
         self.router = Router()
         self.validator = Validator()
         self.file_applier = FileApplier()
+        self.file_reader = FileReader()
         self.agents: dict[AgentName, BaseAgent] = {
             AgentName.OPENCODE: OpenCodeAdapter(),
             AgentName.OPENCLAW: OpenClawAdapter(),
@@ -100,6 +102,8 @@ class AILController:
         task.status = TaskStatus.RUNNING
         move_task(task.task_id, "incoming", "running")
 
+        self._inject_file_context(task)
+
         results = self._dispatch(task)
 
         task.status = TaskStatus.VALIDATING
@@ -123,6 +127,28 @@ class AILController:
             "results": [r.to_dict() for r in results],
             "validation": validation_summary,
         }
+
+    def _inject_file_context(self, task: Task) -> None:
+        """Read project files and inject into task context for OpenCode."""
+        from pathlib import Path
+        repo_root = str(Path(task.inputs.repo).resolve())
+
+        file_contexts = self.file_reader.read_with_defaults(
+            task.inputs.files or None,
+            repo_root,
+        )
+
+        if file_contexts:
+            task.inputs.context["files_context"] = [
+                fc.to_dict() for fc in file_contexts
+            ]
+            paths = [fc.path for fc in file_contexts]
+            total = sum(fc.size for fc in file_contexts)
+            append_log(
+                f"Safe read injected into context: {paths} ({total} bytes)"
+            )
+        else:
+            append_log("No files injected into context (none found or requested)")
 
     def _dispatch(self, task: Task) -> list[AgentResult]:
         """
@@ -227,6 +253,10 @@ class AILController:
         for result in results:
             vr = self.validator.validate(task, result)
             summaries.append(vr.to_dict())
+
+        if task.inputs.files:
+            ctx_vr = self.validator.validate_file_context(task)
+            summaries.append(ctx_vr.to_dict())
 
         if task.inputs.context.get("files_applied"):
             files_vr = self.validator.validate_files_applied(task)

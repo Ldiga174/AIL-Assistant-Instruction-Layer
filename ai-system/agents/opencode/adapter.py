@@ -51,10 +51,27 @@ def _build_user_prompt(task: Task) -> str:
         parts.append(f"Constraints: {json.dumps(task.inputs.constraints, ensure_ascii=False)}")
     if task.inputs.files:
         parts.append(f"Files: {json.dumps(task.inputs.files, ensure_ascii=False)}")
-    if task.inputs.context:
-        parts.append(f"Context: {json.dumps(task.inputs.context, ensure_ascii=False)}")
     if task.expected_output:
         parts.append(f"Expected output: {json.dumps(task.expected_output, ensure_ascii=False)}")
+
+    files_context = task.inputs.context.get("files_context", [])
+    if files_context:
+        parts.append("")
+        parts.append("=== Existing project files ===")
+        for fc in files_context:
+            path = fc.get("path", "?")
+            content = fc.get("content", "")
+            parts.append(f"--- {path} ---")
+            parts.append(content)
+            parts.append(f"--- end {path} ---")
+        parts.append("=== End of project files ===")
+
+    other_context = {
+        k: v for k, v in task.inputs.context.items()
+        if k != "files_context" and k != "files_applied"
+    }
+    if other_context:
+        parts.append(f"Context: {json.dumps(other_context, ensure_ascii=False)}")
 
     parts.append("")
     parts.append("Return ONLY a JSON object as specified in the system prompt.")

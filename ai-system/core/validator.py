@@ -151,6 +151,64 @@ class Validator:
             return ValidationAction.RETRY
         return ValidationAction.ABORT
 
+    def validate_file_context(self, task: Task) -> ValidationResult:
+        """
+        For code/hybrid tasks with requested files:
+        verify that files_context was populated when files existed.
+        """
+        from pathlib import Path
+
+        requested = task.inputs.files
+        files_context = task.inputs.context.get("files_context", [])
+        checks: list[ValidationCheck] = []
+
+        if not requested:
+            checks.append(ValidationCheck(
+                check_name="file_context_provided",
+                check_type="generic",
+                passed=True,
+                message="N/A (no files explicitly requested)",
+            ))
+        else:
+            repo_root = Path(task.inputs.repo).resolve()
+            existing = [f for f in requested if (repo_root / f).exists()]
+
+            if existing and not files_context:
+                checks.append(ValidationCheck(
+                    check_name="file_context_provided",
+                    check_type="code",
+                    passed=False,
+                    message=f"Files {existing} exist but context is empty",
+                ))
+            elif existing:
+                context_paths = {fc["path"] for fc in files_context}
+                covered = [f for f in existing if f in context_paths]
+                checks.append(ValidationCheck(
+                    check_name="file_context_provided",
+                    check_type="code",
+                    passed=len(covered) == len(existing),
+                    message=f"Context covers {len(covered)}/{len(existing)} requested files",
+                ))
+            else:
+                checks.append(ValidationCheck(
+                    check_name="file_context_provided",
+                    check_type="code",
+                    passed=True,
+                    message="Requested files don't exist yet (new file task)",
+                ))
+
+        all_passed = all(c.passed for c in checks)
+        logger.info(
+            "File-context validation %s: passed=%s",
+            task.task_id, all_passed,
+        )
+        return ValidationResult(
+            task_id=task.task_id,
+            passed=all_passed,
+            checks=checks,
+            action=ValidationAction.ACCEPT if all_passed else ValidationAction.RETRY,
+        )
+
     def validate_files_applied(self, task: Task) -> ValidationResult:
         """
         For tasks where FileApplier was used: verify files are actually on disk,
