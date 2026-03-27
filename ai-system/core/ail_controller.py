@@ -352,6 +352,9 @@ class AILController:
             handoff_vr = self.validator.validate_handoff(task, results)
             summaries.append(handoff_vr.to_dict())
 
+        gates_vr = self.validator.validate_gates(task, results)
+        summaries.append(gates_vr.to_dict())
+
         return summaries
 
     def _decide(

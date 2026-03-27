@@ -1,97 +1,139 @@
 """
-Code-level validation checks.
+Code-level verify gates.
 
-Used by AIL Validator to verify that OpenCode's output is legitimate:
-  - Files actually exist on disk
-  - Files were modified recently (not stale claims)
-  - Python files have valid syntax
-  - No obvious regressions (import errors, etc.)
+Required gates for 'code' and 'hybrid' tasks:
+  - file_applied: patches/writes actually applied
+  - file_not_empty: modified files are non-empty
+  - py_syntax: Python files have valid syntax
+  - no_rollback: rollback was NOT the final outcome
 """
 
 from __future__ import annotations
 
 import ast
-import os
-import time
 from pathlib import Path
+from typing import Any
 
 from agents.shared.models import ValidationCheck
 
 
-def check_files_exist(file_paths: list[str]) -> list[ValidationCheck]:
-    """Verify that all claimed files actually exist."""
-    checks = []
-    for fp in file_paths:
-        exists = Path(fp).exists()
-        checks.append(ValidationCheck(
-            check_name=f"file_exists:{fp}",
+def gate_file_applied(task_context: dict[str, Any]) -> ValidationCheck:
+    """Required: at least one file change was successfully applied."""
+    patches = task_context.get("patches_applied", [])
+    files = task_context.get("files_applied", [])
+
+    applied_patches = [p for p in patches if p.get("status") == "applied"]
+    written_files = [f for f in files if f.get("status") == "written"]
+    total = len(applied_patches) + len(written_files)
+
+    if not patches and not files:
+        return ValidationCheck(
+            check_name="gate:file_applied",
             check_type="code",
-            passed=exists,
-            message=f"{'Exists' if exists else 'MISSING'}: {fp}",
-            expected=True,
-            actual=exists,
-        ))
-    return checks
+            passed=True,
+            message="N/A (no file changes requested)",
+        )
+
+    return ValidationCheck(
+        check_name="gate:file_applied",
+        check_type="code",
+        passed=total > 0,
+        message=f"{total} file change(s) applied" if total else "No file changes applied",
+    )
 
 
-def check_files_modified_recently(
-    file_paths: list[str], max_age_seconds: int = 300
-) -> list[ValidationCheck]:
-    """Verify files were modified within the expected time window."""
-    checks = []
-    now = time.time()
-    for fp in file_paths:
-        p = Path(fp)
-        if not p.exists():
-            checks.append(ValidationCheck(
-                check_name=f"file_fresh:{fp}",
-                check_type="code",
-                passed=False,
-                message=f"File does not exist: {fp}",
-            ))
-            continue
-        age = now - p.stat().st_mtime
-        fresh = age <= max_age_seconds
-        checks.append(ValidationCheck(
-            check_name=f"file_fresh:{fp}",
+def gate_file_not_empty(
+    task_context: dict[str, Any], repo_root: str
+) -> ValidationCheck:
+    """Required: modified files are non-empty on disk."""
+    patches = task_context.get("patches_applied", [])
+    files = task_context.get("files_applied", [])
+
+    applied_paths = [
+        p["path"] for p in patches if p.get("status") == "applied"
+    ] + [
+        f["path"] for f in files if f.get("status") == "written"
+    ]
+
+    if not applied_paths:
+        return ValidationCheck(
+            check_name="gate:file_not_empty",
             check_type="code",
-            passed=fresh,
-            message=f"Age: {int(age)}s (limit: {max_age_seconds}s)",
-            expected=f"<= {max_age_seconds}s",
-            actual=f"{int(age)}s",
-        ))
-    return checks
+            passed=True,
+            message="N/A (no applied files)",
+        )
+
+    root = Path(repo_root).resolve()
+    empty = []
+    for rel in applied_paths:
+        full = (root / rel).resolve()
+        if full.exists() and full.stat().st_size == 0:
+            empty.append(rel)
+
+    return ValidationCheck(
+        check_name="gate:file_not_empty",
+        check_type="code",
+        passed=len(empty) == 0,
+        message=(
+            f"All {len(applied_paths)} file(s) non-empty"
+            if not empty
+            else f"Empty files: {empty}"
+        ),
+    )
 
 
-def check_python_syntax(file_paths: list[str]) -> list[ValidationCheck]:
-    """Verify that Python files have valid syntax."""
-    checks = []
-    for fp in file_paths:
-        if not fp.endswith(".py"):
-            continue
-        p = Path(fp)
-        if not p.exists():
-            checks.append(ValidationCheck(
-                check_name=f"py_syntax:{fp}",
-                check_type="code",
-                passed=False,
-                message=f"File not found: {fp}",
-            ))
+def gate_py_syntax(
+    task_context: dict[str, Any], repo_root: str
+) -> ValidationCheck:
+    """Required: Python files have valid syntax after modification."""
+    patches = task_context.get("patches_applied", [])
+    files = task_context.get("files_applied", [])
+
+    py_paths = [
+        p["path"] for p in patches
+        if p.get("status") == "applied" and p["path"].endswith(".py")
+    ] + [
+        f["path"] for f in files
+        if f.get("status") == "written" and f["path"].endswith(".py")
+    ]
+
+    if not py_paths:
+        return ValidationCheck(
+            check_name="gate:py_syntax",
+            check_type="code",
+            passed=True,
+            message="N/A (no Python files modified)",
+        )
+
+    root = Path(repo_root).resolve()
+    errors = []
+    for rel in py_paths:
+        full = (root / rel).resolve()
+        if not full.exists():
             continue
         try:
-            source = p.read_text(encoding="utf-8")
-            ast.parse(source, filename=fp)
-            checks.append(ValidationCheck(
-                check_name=f"py_syntax:{fp}",
-                check_type="code",
-                passed=True,
-                message="Valid Python syntax",
-            ))
+            ast.parse(full.read_text(encoding="utf-8"), filename=rel)
         except SyntaxError as e:
-            checks.append(ValidationCheck(
-                check_name=f"py_syntax:{fp}",
-                check_type="code",
-                passed=False,
-                message=f"Syntax error at line {e.lineno}: {e.msg}",
-            ))
-    return checks
+            errors.append(f"{rel}:{e.lineno}: {e.msg}")
+
+    return ValidationCheck(
+        check_name="gate:py_syntax",
+        check_type="code",
+        passed=len(errors) == 0,
+        message=(
+            f"All {len(py_paths)} Python file(s) have valid syntax"
+            if not errors
+            else f"Syntax errors: {errors}"
+        ),
+    )
+
+
+def gate_no_rollback(task_context: dict[str, Any]) -> ValidationCheck:
+    """Required: rollback was NOT the final outcome."""
+    rolled_back = task_context.get("rollback_executed", False)
+    return ValidationCheck(
+        check_name="gate:no_rollback",
+        check_type="code",
+        passed=not rolled_back,
+        message="No rollback" if not rolled_back else "Rollback was executed — task cannot be done",
+    )

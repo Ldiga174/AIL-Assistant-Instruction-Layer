@@ -151,6 +151,77 @@ class Validator:
             return ValidationAction.RETRY
         return ValidationAction.ABORT
 
+    def validate_gates(
+        self, task: Task, results: list[AgentResult]
+    ) -> ValidationResult:
+        """
+        Run required verify gates based on task role.
+
+        Gates are hard requirements — if any required gate fails,
+        the task cannot be marked as done.
+
+        Required gates by role:
+          code:   file_applied, file_not_empty, py_syntax, no_rollback
+          exec:   command_executed, no_total_failure
+          hybrid: all code gates + all exec gates + verify_commands_ok
+        """
+        from pathlib import Path
+        from validations.code_checks import (
+            gate_file_applied,
+            gate_file_not_empty,
+            gate_no_rollback,
+            gate_py_syntax,
+        )
+        from validations.deploy_checks import (
+            gate_command_executed,
+            gate_no_total_failure,
+            gate_verify_commands_ok,
+        )
+
+        repo_root = str(Path(task.inputs.repo).resolve())
+        ctx = task.inputs.context
+
+        required: list[ValidationCheck] = []
+        optional: list[ValidationCheck] = []
+
+        if task.role in (TaskRole.CODE, TaskRole.HYBRID):
+            required.append(gate_file_applied(ctx))
+            required.append(gate_file_not_empty(ctx, repo_root))
+            required.append(gate_py_syntax(ctx, repo_root))
+            required.append(gate_no_rollback(ctx))
+
+        if task.role in (TaskRole.EXEC, TaskRole.HYBRID):
+            required.append(gate_command_executed(results))
+            required.append(gate_no_total_failure(results))
+
+        if task.role == TaskRole.HYBRID:
+            required.append(gate_verify_commands_ok(results))
+
+        all_checks = required + optional
+        required_passed = all(c.passed for c in required)
+        all_passed = all(c.passed for c in all_checks)
+
+        if required_passed:
+            action = ValidationAction.ACCEPT
+        else:
+            action = ValidationAction.ABORT
+
+        failed_gates = [c.check_name for c in required if not c.passed]
+
+        logger.info(
+            "Gates %s [%s]: required=%d passed=%s, failed=%s",
+            task.task_id, task.role.value,
+            len(required), required_passed,
+            failed_gates or "none",
+        )
+
+        return ValidationResult(
+            task_id=task.task_id,
+            passed=all_passed,
+            checks=all_checks,
+            action=action,
+        )
+
     def validate_snapshot(self, task: Task) -> ValidationResult:
         """Verify snapshot/rollback lifecycle for tasks with file changes."""
         checks: list[ValidationCheck] = []
