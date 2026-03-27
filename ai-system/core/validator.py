@@ -151,6 +151,48 @@ class Validator:
             return ValidationAction.RETRY
         return ValidationAction.ABORT
 
+    def validate_snapshot(self, task: Task) -> ValidationResult:
+        """Verify snapshot/rollback lifecycle for tasks with file changes."""
+        checks: list[ValidationCheck] = []
+
+        snapshot_created = task.inputs.context.get("snapshot_created")
+        if snapshot_created is None:
+            checks.append(ValidationCheck(
+                check_name="snapshot",
+                check_type="generic",
+                passed=True,
+                message="N/A (no file changes)",
+            ))
+            return ValidationResult(
+                task_id=task.task_id, passed=True, checks=checks,
+            )
+
+        checks.append(ValidationCheck(
+            check_name="snapshot_created",
+            check_type="generic",
+            passed=bool(snapshot_created),
+            message="Snapshot created before apply" if snapshot_created else "Snapshot FAILED — changes should not have been applied",
+        ))
+
+        rollback_executed = task.inputs.context.get("rollback_executed")
+        if rollback_executed is not None:
+            restored = task.inputs.context.get("rollback_restored", [])
+            checks.append(ValidationCheck(
+                check_name="rollback_executed",
+                check_type="generic",
+                passed=True,
+                message=f"Rollback executed: {len(restored)} file(s) restored",
+            ))
+
+        logger.info("Snapshot validation %s: %d checks", task.task_id, len(checks))
+        all_passed = all(c.passed for c in checks)
+        return ValidationResult(
+            task_id=task.task_id,
+            passed=all_passed,
+            checks=checks,
+            action=ValidationAction.ACCEPT if all_passed else ValidationAction.ABORT,
+        )
+
     def validate_patches_applied(self, task: Task) -> ValidationResult:
         """
         For tasks with file_patches: verify patches were applied,

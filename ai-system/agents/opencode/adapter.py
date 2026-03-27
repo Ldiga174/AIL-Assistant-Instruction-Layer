@@ -288,6 +288,9 @@ class MockTransport(LLMTransport):
     def _infer_commands(goal: str) -> list[str]:
         goal_lower = goal.lower()
         cmds = []
+        if "несуществующ" in goal_lower or "rollback" in goal_lower:
+            cmds.append("nonexistent_verify_tool --check")
+            return cmds
         if "test" in goal_lower or "тест" in goal_lower:
             cmds.append("python -m pytest tests/ -v")
         if "запуск" in goal_lower or "run" in goal_lower or "start" in goal_lower:

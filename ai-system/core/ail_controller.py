@@ -46,6 +46,7 @@ from core.file_reader import FileReader
 from core.patch_applier import PatchApplier
 from core.planner import Planner
 from core.router import Router
+from core.snapshot_manager import SnapshotManager
 from core.validator import Validator
 
 logger = logging.getLogger(__name__)
@@ -68,6 +69,7 @@ class AILController:
         self.file_applier = FileApplier()
         self.file_reader = FileReader()
         self.patch_applier = PatchApplier()
+        self.snapshot_manager = SnapshotManager()
         self.agents: dict[AgentName, BaseAgent] = {
             AgentName.OPENCODE: OpenCodeAdapter(),
             AgentName.OPENCLAW: OpenClawAdapter(),
@@ -113,6 +115,9 @@ class AILController:
 
         final_status = self._decide(task, validation_summary)
         task.status = final_status
+
+        if final_status != TaskStatus.DONE and task.inputs.context.get("snapshot_created"):
+            self._rollback(task)
 
         dest_stage = "done" if final_status == TaskStatus.DONE else "failed"
         move_task(task.task_id, "running", dest_stage)
@@ -190,11 +195,56 @@ class AILController:
             )
 
             if agent_name == AgentName.OPENCODE:
-                self._apply_patches(task, result)
-                self._apply_files(task, result)
+                self._snapshot_and_apply(task, result)
                 self._handoff_commands(task, result, agents_needed)
 
         return results
+
+    def _snapshot_and_apply(self, task: Task, opencode_result: AgentResult) -> None:
+        """Create snapshot of affected files, then apply patches and writes."""
+        from pathlib import Path
+        repo_root = str(Path(task.inputs.repo).resolve())
+
+        affected_paths: list[str] = []
+        for p in opencode_result.artifacts.file_patches:
+            affected_paths.append(p.path)
+        for fw in opencode_result.artifacts.files_to_write:
+            affected_paths.append(fw.path)
+
+        if not affected_paths:
+            return
+
+        snapshot = self.snapshot_manager.create_snapshot(
+            task.task_id, repo_root, affected_paths,
+        )
+        if snapshot is None:
+            append_log(f"ABORT: snapshot creation failed — not applying changes")
+            task.inputs.context["snapshot_created"] = False
+            return
+
+        task.inputs.context["snapshot_created"] = True
+        append_log(
+            f"Snapshot created: {len(snapshot['files'])} file(s) tracked"
+        )
+
+        self._apply_patches(task, opencode_result)
+        self._apply_files(task, opencode_result)
+
+    def _rollback(self, task: Task) -> None:
+        """Restore files from snapshot after a failed task."""
+        from pathlib import Path
+        repo_root = str(Path(task.inputs.repo).resolve())
+
+        append_log(f"Rollback started for {task.task_id}")
+        restored = self.snapshot_manager.restore_snapshot(task.task_id, repo_root)
+
+        if restored:
+            append_log(f"Rollback completed: {len(restored)} file(s) restored: {restored}")
+            task.inputs.context["rollback_executed"] = True
+            task.inputs.context["rollback_restored"] = restored
+        else:
+            append_log(f"Rollback: nothing to restore")
+            task.inputs.context["rollback_executed"] = False
 
     def _apply_patches(self, task: Task, opencode_result: AgentResult) -> None:
         """Apply patches produced by OpenCode via the safe PatchApplier."""
@@ -281,6 +331,10 @@ class AILController:
         for result in results:
             vr = self.validator.validate(task, result)
             summaries.append(vr.to_dict())
+
+        if task.inputs.context.get("snapshot_created") is not None:
+            snap_vr = self.validator.validate_snapshot(task)
+            summaries.append(snap_vr.to_dict())
 
         if task.inputs.files:
             ctx_vr = self.validator.validate_file_context(task)
