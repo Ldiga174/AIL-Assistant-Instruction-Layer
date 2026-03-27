@@ -180,9 +180,19 @@ class Validator:
 
         repo_root = str(Path(task.inputs.repo).resolve())
         ctx = task.inputs.context
+        policy = ctx.get("_policy", {})
 
         required: list[ValidationCheck] = []
         optional: list[ValidationCheck] = []
+
+        if policy.get("require_snapshot") and ctx.get("snapshot_created") is not None:
+            snapshot_ok = bool(ctx.get("snapshot_created"))
+            required.append(ValidationCheck(
+                check_name="gate:snapshot_present",
+                check_type="generic",
+                passed=snapshot_ok,
+                message="Snapshot was created" if snapshot_ok else "Snapshot MISSING (required by policy)",
+            ))
 
         if task.role in (TaskRole.CODE, TaskRole.HYBRID):
             required.append(gate_file_applied(ctx))

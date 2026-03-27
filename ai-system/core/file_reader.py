@@ -60,6 +60,7 @@ class FileReader:
         self,
         file_paths: list[str],
         repo_root: str,
+        max_files: int | None = None,
     ) -> list[FileContext]:
         """
         Read a list of files within repo_root.
@@ -72,11 +73,12 @@ class FileReader:
             logger.error("[FileReader] repo_root not found: %s", root)
             return []
 
-        paths = file_paths[:MAX_FILES]
-        if len(file_paths) > MAX_FILES:
+        limit = max_files if max_files is not None else MAX_FILES
+        paths = file_paths[:limit]
+        if len(file_paths) > limit:
             logger.warning(
                 "[FileReader] Truncated file list from %d to %d",
-                len(file_paths), MAX_FILES,
+                len(file_paths), limit,
             )
 
         results: list[FileContext] = []
@@ -98,13 +100,14 @@ class FileReader:
         self,
         file_paths: list[str] | None,
         repo_root: str,
+        max_files: int | None = None,
     ) -> list[FileContext]:
         """
         Read specified files, falling back to default scan paths
         if none are specified.
         """
         if file_paths:
-            return self.read(file_paths, repo_root)
+            return self.read(file_paths, repo_root, max_files=max_files)
 
         root = Path(repo_root).resolve()
         existing = [
@@ -113,7 +116,7 @@ class FileReader:
         ]
         if existing:
             logger.info("[FileReader] Using default scan paths: %s", existing)
-            return self.read(existing, repo_root)
+            return self.read(existing, repo_root, max_files=max_files)
 
         logger.info("[FileReader] No files to read (no explicit paths, no defaults found)")
         return []

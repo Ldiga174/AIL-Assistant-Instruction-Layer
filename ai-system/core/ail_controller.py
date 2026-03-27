@@ -45,6 +45,7 @@ from core.file_applier import FileApplier
 from core.file_reader import FileReader
 from core.patch_applier import PatchApplier
 from core.planner import Planner
+from core.policy import TaskPolicy, resolve_policy
 from core.router import Router
 from core.snapshot_manager import SnapshotManager
 from core.validator import Validator
@@ -96,6 +97,11 @@ class AILController:
         append_log(f"New task received: {task.task_id} — {task.goal}")
         append_log(f"Task {task.task_id} classified: role={task.role.value}")
 
+        policy_mode = task.inputs.context.get("policy_mode")
+        policy = resolve_policy(policy_mode)
+        task.inputs.context["_policy"] = policy.to_dict()
+        append_log(f"Policy: mode={policy.mode}")
+
         persist_task(task.to_dict(), "incoming")
 
         routing = self.router.route(task)
@@ -106,9 +112,9 @@ class AILController:
         task.status = TaskStatus.RUNNING
         move_task(task.task_id, "incoming", "running")
 
-        self._inject_file_context(task)
+        self._inject_file_context(task, policy)
 
-        results = self._dispatch(task)
+        results = self._dispatch(task, policy)
 
         task.status = TaskStatus.VALIDATING
         validation_summary = self._validate_all(task, results)
@@ -135,14 +141,23 @@ class AILController:
             "validation": validation_summary,
         }
 
-    def _inject_file_context(self, task: Task) -> None:
+    def _inject_file_context(self, task: Task, policy: TaskPolicy) -> None:
         """Read project files and inject into task context for OpenCode."""
         from pathlib import Path
         repo_root = str(Path(task.inputs.repo).resolve())
 
+        requested = task.inputs.files or None
+        if requested and len(requested) > policy.max_files_read:
+            append_log(
+                f"Policy {policy.mode}: truncated file read from "
+                f"{len(requested)} to {policy.max_files_read}"
+            )
+            requested = requested[:policy.max_files_read]
+
         file_contexts = self.file_reader.read_with_defaults(
-            task.inputs.files or None,
+            requested,
             repo_root,
+            max_files=policy.max_files_read,
         )
 
         if file_contexts:
@@ -157,7 +172,7 @@ class AILController:
         else:
             append_log("No files injected into context (none found or requested)")
 
-    def _dispatch(self, task: Task) -> list[AgentResult]:
+    def _dispatch(self, task: Task, policy: TaskPolicy | None = None) -> list[AgentResult]:
         """
         Send task steps to appropriate agents and collect results.
 
@@ -195,20 +210,48 @@ class AILController:
             )
 
             if agent_name == AgentName.OPENCODE:
-                self._snapshot_and_apply(task, result)
+                self._snapshot_and_apply(task, result, policy)
                 self._handoff_commands(task, result, agents_needed)
 
         return results
 
-    def _snapshot_and_apply(self, task: Task, opencode_result: AgentResult) -> None:
+    def _snapshot_and_apply(
+        self, task: Task, opencode_result: AgentResult, policy: TaskPolicy | None = None
+    ) -> None:
         """Create snapshot of affected files, then apply patches and writes."""
         from pathlib import Path
         repo_root = str(Path(task.inputs.repo).resolve())
 
+        patches = opencode_result.artifacts.file_patches
+        writes = opencode_result.artifacts.files_to_write
+
+        if policy:
+            if not policy.allow_patch and patches:
+                append_log(f"Policy {policy.mode}: patches blocked")
+                patches = []
+            elif patches and len(patches) > policy.max_patch_ops:
+                append_log(
+                    f"Policy {policy.mode}: truncated patches from "
+                    f"{len(patches)} to {policy.max_patch_ops}"
+                )
+                patches = patches[:policy.max_patch_ops]
+                opencode_result.artifacts.file_patches = patches
+
+            if not policy.allow_file_write and writes:
+                append_log(f"Policy {policy.mode}: file writes blocked")
+                writes = []
+            elif writes and len(writes) > policy.max_files_write:
+                append_log(
+                    f"Policy {policy.mode}: truncated writes from "
+                    f"{len(writes)} to {policy.max_files_write}"
+                )
+                writes = writes[:policy.max_files_write]
+                opencode_result.artifacts.files_to_write = writes
+
         affected_paths: list[str] = []
-        for p in opencode_result.artifacts.file_patches:
+        for p in patches:
             affected_paths.append(p.path)
-        for fw in opencode_result.artifacts.files_to_write:
+        for fw in writes:
             affected_paths.append(fw.path)
 
         if not affected_paths:
