@@ -41,6 +41,7 @@ from core.memory import (
     save_routing_state,
     save_task_log,
 )
+from core.capabilities import is_task_role_allowed
 from core.file_applier import FileApplier
 from core.file_reader import FileReader
 from core.patch_applier import PatchApplier
@@ -194,6 +195,24 @@ class AILController:
             agent = self.agents.get(agent_name)
             if not agent:
                 logger.error("No agent registered for %s", agent_name.value)
+                continue
+
+            if not is_task_role_allowed(agent_name, task.role.value):
+                append_log(
+                    f"CAPABILITY DENIED: {agent_name.value} cannot handle "
+                    f"role={task.role.value} — skipping"
+                )
+                from agents.shared.models import ErrorInfo, ResultStatus
+                results.append(AgentResult(
+                    task_id=task.task_id,
+                    agent=agent_name,
+                    status=ResultStatus.ERROR,
+                    errors=[ErrorInfo(
+                        message=f"Agent {agent_name.value} not allowed for role {task.role.value}",
+                        code="CAPABILITY_DENIED",
+                    )],
+                    notes=f"capability violation: {agent_name.value} cannot handle {task.role.value}",
+                ))
                 continue
 
             task.assigned_to = agent_name

@@ -38,6 +38,7 @@ class Validator:
             self._check_status_present(result),
             self._check_success_has_content(result),
             self._check_error_has_description(result),
+            self._check_capability_contract(result),
         ]
 
         all_passed = all(c.passed for c in checks)
@@ -140,6 +141,22 @@ class Validator:
                 f"{len(result.errors)} error(s) with description"
                 if has_described_error
                 else "Failed status but no error description provided"
+            ),
+        )
+
+    @staticmethod
+    def _check_capability_contract(result: AgentResult) -> ValidationCheck:
+        """Check 5: agent did not produce forbidden output artifacts."""
+        from core.capabilities import validate_agent_output
+        violations = validate_agent_output(result)
+        return ValidationCheck(
+            check_name="capability_contract_ok",
+            check_type="generic",
+            passed=len(violations) == 0,
+            message=(
+                "No capability violations"
+                if not violations
+                else f"VIOLATIONS: {'; '.join(violations)}"
             ),
         )
 
