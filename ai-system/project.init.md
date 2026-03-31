@@ -256,19 +256,18 @@ Note: these modules are standalone helpers. The core `validator.py` runs its own
 - `patch_applier.py` — targeted diffs
 - `snapshot_manager.py` — snapshot + rollback
 - Wiring `validations/*.py` into core `Validator`
-- Task Manifest / Execution Record
 
 ---
 
 ## 6. Roadmap
 
-| Step | Name | Description |
-|------|------|-------------|
-| 13 | Task Manifest | Execution record per task (planned, changed, executed) |
-| 14 | Multi-step Tasks | Task chains with dependencies |
-| 15 | Agent Memory | Learning from past executions |
-| 16 | External Tools | git, docker, cloud API integration |
-| 17 | UI Layer | Pipeline visualization, task management |
+| Step | Name | Description | Status |
+|------|------|-------------|--------|
+| 13 | Task Manifest | Execution record per task (planned, changed, executed) | DONE |
+| 14 | Multi-step Tasks | Task chains with dependencies | PLANNED |
+| 15 | Agent Memory | Learning from past executions | PLANNED |
+| 16 | External Tools | git, docker, cloud API integration | PLANNED |
+| 17 | UI Layer | Pipeline visualization, task management | PLANNED |
 
 ---
 

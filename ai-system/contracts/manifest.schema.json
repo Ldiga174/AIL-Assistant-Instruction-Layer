@@ -1,0 +1,122 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AIL Task Manifest",
+  "description": "Execution record for a completed task — what was planned, changed, executed, and decided",
+  "type": "object",
+  "required": ["manifest_id", "task_id", "goal", "plan", "decision"],
+  "properties": {
+    "manifest_id": {
+      "type": "string",
+      "pattern": "^m-task-[0-9]{3,}-",
+      "description": "Unique manifest identifier"
+    },
+    "task_id": {
+      "type": "string",
+      "pattern": "^task-[0-9]{3,}$",
+      "description": "Task this manifest records"
+    },
+    "goal": {
+      "type": "string",
+      "description": "What was requested"
+    },
+    "plan": {
+      "type": "object",
+      "description": "What was planned before execution",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["code", "exec", "hybrid"]
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "step_id": { "type": "string" },
+              "action": { "type": "string" },
+              "agent": { "type": "string", "enum": ["opencode", "openclaw"] }
+            }
+          }
+        },
+        "constraints": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "executions": {
+      "type": "array",
+      "description": "What each agent actually did",
+      "items": {
+        "type": "object",
+        "required": ["agent", "status"],
+        "properties": {
+          "agent": {
+            "type": "string",
+            "enum": ["opencode", "openclaw"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["success", "partial", "failed", "error"]
+          },
+          "duration_ms": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "files_changed": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "files_deleted": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "commands_executed": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "message": { "type": "string" },
+                "code": { "type": "string" },
+                "details": { "type": "string" }
+              }
+            }
+          },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "validation": {
+      "type": "array",
+      "description": "Validation results",
+      "items": { "type": "object" }
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["done", "failed", "retrying"],
+      "description": "Final decision by AIL"
+    },
+    "retry_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total execution duration in milliseconds"
+    }
+  },
+  "additionalProperties": false
+}

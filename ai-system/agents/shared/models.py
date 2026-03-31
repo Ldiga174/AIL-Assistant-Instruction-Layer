@@ -300,3 +300,113 @@ class ValidationResult:
             "action": self.action.value,
             "validated_at": self.validated_at,
         }
+
+
+@dataclass
+class ManifestPlan:
+    """What was planned before execution."""
+    role: str
+    steps: list[dict[str, Any]] = field(default_factory=list)
+    constraints: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "role": self.role,
+            "steps": self.steps,
+            "constraints": self.constraints,
+        }
+
+
+@dataclass
+class ManifestExecution:
+    """What actually happened during execution."""
+    agent: str
+    status: str
+    duration_ms: int = 0
+    files_changed: list[str] = field(default_factory=list)
+    files_deleted: list[str] = field(default_factory=list)
+    commands_executed: list[str] = field(default_factory=list)
+    errors: list[dict[str, str]] = field(default_factory=list)
+    notes: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "agent": self.agent,
+            "status": self.status,
+            "duration_ms": self.duration_ms,
+            "files_changed": self.files_changed,
+            "files_deleted": self.files_deleted,
+            "commands_executed": self.commands_executed,
+            "errors": self.errors,
+            "notes": self.notes,
+        }
+
+
+@dataclass
+class TaskManifest:
+    """
+    Execution record for a completed task — like a git commit, but for AI.
+
+    Records what was planned, what changed, what was executed, and the outcome.
+    """
+    manifest_id: str
+    task_id: str
+    goal: str
+    plan: ManifestPlan
+    executions: list[ManifestExecution] = field(default_factory=list)
+    validation: list[dict[str, Any]] = field(default_factory=list)
+    decision: str = "done"
+    retry_count: int = 0
+    started_at: str = field(default_factory=_now)
+    completed_at: str = field(default_factory=_now)
+    duration_ms: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "manifest_id": self.manifest_id,
+            "task_id": self.task_id,
+            "goal": self.goal,
+            "plan": self.plan.to_dict(),
+            "executions": [e.to_dict() for e in self.executions],
+            "validation": self.validation,
+            "decision": self.decision,
+            "retry_count": self.retry_count,
+            "started_at": self.started_at,
+            "completed_at": self.completed_at,
+            "duration_ms": self.duration_ms,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> TaskManifest:
+        plan_raw = data.get("plan", {})
+        plan = ManifestPlan(
+            role=plan_raw.get("role", "code"),
+            steps=plan_raw.get("steps", []),
+            constraints=plan_raw.get("constraints", []),
+        )
+        executions = [
+            ManifestExecution(
+                agent=e["agent"],
+                status=e["status"],
+                duration_ms=e.get("duration_ms", 0),
+                files_changed=e.get("files_changed", []),
+                files_deleted=e.get("files_deleted", []),
+                commands_executed=e.get("commands_executed", []),
+                errors=e.get("errors", []),
+                notes=e.get("notes", ""),
+            )
+            for e in data.get("executions", [])
+        ]
+        return cls(
+            manifest_id=data["manifest_id"],
+            task_id=data["task_id"],
+            goal=data["goal"],
+            plan=plan,
+            executions=executions,
+            validation=data.get("validation", []),
+            decision=data.get("decision", "done"),
+            retry_count=data.get("retry_count", 0),
+            started_at=data.get("started_at", _now()),
+            completed_at=data.get("completed_at", _now()),
+            duration_ms=data.get("duration_ms", 0),
+        )

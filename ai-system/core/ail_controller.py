@@ -17,6 +17,7 @@ Lifecycle:
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -30,6 +31,7 @@ from agents.shared.models import (
     TaskStatus,
     ValidationAction,
 )
+from core.manifest import build_manifest, save_manifest
 from core.memory import (
     append_log,
     load_agents_state,
@@ -82,8 +84,10 @@ class AILController:
         """
         Entry point for pre-built Task objects (e.g. loaded from JSON).
 
-        Full cycle: plan -> route -> dispatch -> validate -> decide -> log.
+        Full cycle: plan -> route -> dispatch -> validate -> decide -> manifest -> log.
         """
+        t0 = time.monotonic()
+
         append_log(f"New task received: {task.task_id} — {task.goal}")
         append_log(f"Task {task.task_id} classified: role={task.role.value}")
 
@@ -109,6 +113,12 @@ class AILController:
         move_task(task.task_id, "running", dest_stage)
         persist_task(task.to_dict(), dest_stage)
 
+        manifest = build_manifest(
+            task, results, validation_summary, final_status.value, t0,
+        )
+        manifest_path = save_manifest(manifest)
+        append_log(f"Manifest saved: {manifest.manifest_id}")
+
         self._log_task_summary(task, results, validation_summary)
         append_log(f"Task {task.task_id} finished: status={final_status.value}")
 
@@ -119,6 +129,8 @@ class AILController:
             "status": final_status.value,
             "results": [r.to_dict() for r in results],
             "validation": validation_summary,
+            "manifest_id": manifest.manifest_id,
+            "manifest_path": str(manifest_path),
         }
 
     def _dispatch(self, task: Task) -> list[AgentResult]:
