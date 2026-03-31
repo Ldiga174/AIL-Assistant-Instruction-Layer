@@ -27,6 +27,7 @@ from agents.shared.base_agent import BaseAgent
 from agents.shared.models import (
     AgentName,
     AgentResult,
+    StepResult,
     Task,
     TaskStatus,
     ValidationAction,
@@ -44,11 +45,10 @@ from core.memory import (
 )
 from core.planner import Planner
 from core.router import Router
+from core.step_executor import StepExecutor
 from core.validator import Validator
 
 logger = logging.getLogger(__name__)
-
-DISPATCH_ORDER = [AgentName.OPENCODE, AgentName.OPENCLAW]
 
 
 class AILController:
@@ -67,6 +67,7 @@ class AILController:
             AgentName.OPENCODE: OpenCodeAdapter(),
             AgentName.OPENCLAW: OpenClawAdapter(),
         }
+        self.step_executor = StepExecutor(self.agents)
         self.session_id = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
 
     def handle_goal(
@@ -101,7 +102,8 @@ class AILController:
         task.status = TaskStatus.RUNNING
         move_task(task.task_id, "incoming", "running")
 
-        results = self._dispatch(task)
+        step_results = self.step_executor.execute_steps(task)
+        results = [sr.result for sr in step_results if sr.result is not None]
 
         task.status = TaskStatus.VALIDATING
         validation_summary = self._validate_all(task, results)
@@ -127,48 +129,12 @@ class AILController:
             "goal": task.goal,
             "role": task.role.value,
             "status": final_status.value,
+            "steps": [sr.to_dict() for sr in step_results],
             "results": [r.to_dict() for r in results],
             "validation": validation_summary,
             "manifest_id": manifest.manifest_id,
             "manifest_path": str(manifest_path),
         }
-
-    def _dispatch(self, task: Task) -> list[AgentResult]:
-        """
-        Send task steps to appropriate agents and collect results.
-
-        Order is guaranteed: OpenCode first, OpenClaw second.
-        This matters for hybrid tasks where code must be ready before execution.
-        """
-        results: list[AgentResult] = []
-
-        agents_needed: set[AgentName] = set()
-        for step in task.steps:
-            agents_needed.add(step.agent)
-
-        for agent_name in DISPATCH_ORDER:
-            if agent_name not in agents_needed:
-                continue
-
-            agent = self.agents.get(agent_name)
-            if not agent:
-                logger.error("No agent registered for %s", agent_name.value)
-                continue
-
-            task.assigned_to = agent_name
-            self._update_agent_state(agent_name, "running", task.task_id)
-            append_log(f"Dispatching {task.task_id} to {agent_name.value}")
-
-            result = agent.safe_execute(task)
-            results.append(result)
-
-            self._update_agent_state(agent_name, "idle", None)
-            append_log(
-                f"Agent {agent_name.value} returned: "
-                f"status={result.status.value}, notes={result.notes[:80]}"
-            )
-
-        return results
 
     def _validate_all(
         self, task: Task, results: list[AgentResult]

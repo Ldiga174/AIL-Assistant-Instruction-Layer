@@ -66,12 +66,21 @@ class TaskInputs:
     files: list[str] = field(default_factory=list)
 
 
+class StepStatus(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    DONE = "done"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
 @dataclass
 class TaskStep:
     step_id: str
     action: str
     agent: AgentName
     depends_on: list[str] = field(default_factory=list)
+    status: StepStatus = StepStatus.PENDING
 
 
 @dataclass
@@ -107,6 +116,7 @@ class Task:
                     "action": s.action,
                     "agent": s.agent.value,
                     "depends_on": s.depends_on,
+                    "status": s.status.value,
                 }
                 for s in self.steps
             ],
@@ -137,6 +147,7 @@ class Task:
                 action=s["action"],
                 agent=AgentName(s["agent"]),
                 depends_on=s.get("depends_on", []),
+                status=StepStatus(s["status"]) if "status" in s else StepStatus.PENDING,
             )
             for s in data.get("steps", [])
         ]
@@ -206,6 +217,28 @@ class CommandResult:
             "duration_ms": self.duration_ms,
             "allowed": self.allowed,
         }
+
+
+@dataclass
+class StepResult:
+    """Result of a single step execution, linking step to agent result."""
+    step_id: str
+    agent: AgentName
+    status: ResultStatus
+    result: AgentResult | None = None
+    skipped_reason: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
+            "step_id": self.step_id,
+            "agent": self.agent.value,
+            "status": self.status.value,
+        }
+        if self.result:
+            d["result"] = self.result.to_dict()
+        if self.skipped_reason:
+            d["skipped_reason"] = self.skipped_reason
+        return d
 
 
 @dataclass

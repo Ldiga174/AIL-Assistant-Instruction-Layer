@@ -2,16 +2,18 @@
 AIL Planner — breaks a high-level goal into executable steps.
 
 The planner receives a raw user goal and produces a Task
-with classified role and ordered steps.
+with classified role and ordered steps with dependencies.
 
-Current implementation uses simple heuristics.
-Future versions may delegate planning to an LLM.
+Supports:
+  - Single-step tasks (code or exec)
+  - Multi-step hybrid tasks (code -> verify -> deploy)
+  - Explicit step lists from task definitions
+  - Dependency chains between steps
 """
 
 from __future__ import annotations
 
 import logging
-import re
 
 from agents.shared.models import (
     AgentName,
@@ -35,6 +37,14 @@ CODE_KEYWORDS = [
     "implement", "create file", "add endpoint",
 ]
 
+DEPLOY_KEYWORDS = [
+    "deploy", "деплой", "publish", "release", "push",
+]
+
+TEST_KEYWORDS = [
+    "test", "тест", "проверь", "verify", "check", "lint",
+]
+
 
 class Planner:
     """Produces a Task from a raw goal string."""
@@ -45,9 +55,14 @@ class Planner:
         *,
         repo: str = ".",
         constraints: list[str] | None = None,
+        steps: list[dict] | None = None,
     ) -> Task:
         role = self._classify(goal)
-        steps = self._generate_steps(goal, role)
+
+        if steps:
+            task_steps = self._parse_explicit_steps(steps)
+        else:
+            task_steps = self._generate_steps(goal, role)
 
         task = Task(
             goal=goal,
@@ -57,11 +72,11 @@ class Planner:
                 constraints=constraints or [],
             ),
             expected_output=self._expected_outputs(role),
-            steps=steps,
+            steps=task_steps,
         )
         logger.info(
             "Planned task %s: role=%s steps=%d",
-            task.task_id, role.value, len(steps),
+            task.task_id, role.value, len(task_steps),
         )
         return task
 
@@ -77,24 +92,85 @@ class Planner:
         return TaskRole.CODE
 
     def _generate_steps(self, goal: str, role: TaskRole) -> list[TaskStep]:
+        goal_lower = goal.lower()
+
         if role == TaskRole.CODE:
-            return [
-                TaskStep(step_id="s1", action=goal, agent=AgentName.OPENCODE),
-            ]
+            return self._plan_code(goal, goal_lower)
         elif role == TaskRole.EXEC:
-            return [
-                TaskStep(step_id="s1", action=goal, agent=AgentName.OPENCLAW),
-            ]
+            return self._plan_exec(goal, goal_lower)
         else:
-            return [
-                TaskStep(step_id="s1", action=f"[code] {goal}", agent=AgentName.OPENCODE),
-                TaskStep(
-                    step_id="s2",
-                    action=f"[exec] Verify and run: {goal}",
-                    agent=AgentName.OPENCLAW,
-                    depends_on=["s1"],
-                ),
-            ]
+            return self._plan_hybrid(goal, goal_lower)
+
+    def _plan_code(self, goal: str, goal_lower: str) -> list[TaskStep]:
+        steps = [
+            TaskStep(step_id="s1", action=goal, agent=AgentName.OPENCODE),
+        ]
+        if any(kw in goal_lower for kw in TEST_KEYWORDS):
+            steps.append(TaskStep(
+                step_id="s2",
+                action="run: pytest",
+                agent=AgentName.OPENCLAW,
+                depends_on=["s1"],
+            ))
+        return steps
+
+    def _plan_exec(self, goal: str, goal_lower: str) -> list[TaskStep]:
+        return [
+            TaskStep(step_id="s1", action=goal, agent=AgentName.OPENCLAW),
+        ]
+
+    def _plan_hybrid(self, goal: str, goal_lower: str) -> list[TaskStep]:
+        steps = [
+            TaskStep(
+                step_id="s1",
+                action=f"[code] {goal}",
+                agent=AgentName.OPENCODE,
+            ),
+        ]
+
+        has_test = any(kw in goal_lower for kw in TEST_KEYWORDS)
+        has_deploy = any(kw in goal_lower for kw in DEPLOY_KEYWORDS)
+
+        if has_test:
+            steps.append(TaskStep(
+                step_id="s2",
+                action="[verify] Run tests to validate changes",
+                agent=AgentName.OPENCLAW,
+                depends_on=["s1"],
+            ))
+            verify_id = "s2"
+        else:
+            steps.append(TaskStep(
+                step_id="s2",
+                action=f"[exec] Verify and run: {goal}",
+                agent=AgentName.OPENCLAW,
+                depends_on=["s1"],
+            ))
+            verify_id = "s2"
+
+        if has_deploy:
+            steps.append(TaskStep(
+                step_id="s3",
+                action="[deploy] Deploy verified changes",
+                agent=AgentName.OPENCLAW,
+                depends_on=[verify_id],
+            ))
+
+        return steps
+
+    @staticmethod
+    def _parse_explicit_steps(steps_data: list[dict]) -> list[TaskStep]:
+        """Parse user-provided step definitions."""
+        result: list[TaskStep] = []
+        for i, s in enumerate(steps_data):
+            step = TaskStep(
+                step_id=s.get("step_id", f"s{i + 1}"),
+                action=s["action"],
+                agent=AgentName(s["agent"]),
+                depends_on=s.get("depends_on", []),
+            )
+            result.append(step)
+        return result
 
     @staticmethod
     def _expected_outputs(role: TaskRole) -> list[str]:
