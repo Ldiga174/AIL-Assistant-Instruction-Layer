@@ -4,40 +4,58 @@
     "priority": "working_code_first",
     "initialization": {
       "entry_point": "project.init.md",
+      "architecture": "ai-system/project.init.md",
       "mandatory_checks": "prestart.checklist",
       "logging": "ailog.md",
       "task_source": "task.todo.json"
     },
     "rules": [
-      "Всегда начинай с project.init.md",
-      "Выполни prestart.checklist перед задачами",
-      "Логируй все действия в ailog.md",
-      "Не меняй рабочий код без запроса",
-      "Используй современные практики 2024-2025",
-      "Сохраняй структуру и стиль проекта"
+      "Always start with project.init.md",
+      "Read ai-system/project.init.md for full architecture map",
+      "Run prestart.checklist before tasks",
+      "Log all actions to ailog.md",
+      "Do not modify working code without request",
+      "No agent makes final decisions — only AIL controls the system",
+      "OpenCode does not execute commands",
+      "OpenClaw does not generate code",
+      "Use modern practices (2024-2026)"
     ],
     "workflow": {
-      "1": "Читай project.init.md",
-      "2": "Проверь prestart.checklist",
-      "3": "При неудаче - останавливайся",
-      "4": "При успехе - читай ailog.md",
-      "5": "Выполняй задачи из task.todo.json",
-      "6": "Завершай сессию записью в ailog.md"
+      "1": "Read project.init.md",
+      "2": "Read ai-system/project.init.md (architecture map)",
+      "3": "Check prestart.checklist",
+      "4": "On failure — stop and report",
+      "5": "On success — read ailog.md",
+      "6": "Execute tasks from task.todo.json",
+      "7": "End session with summary in ailog.md"
     }
   },
   "project_meta": {
-    "name": "AI Dashboard Project",
-    "goal": "Создать красивый AI Dashboard с сервером",
-    "tech_stack": ["Node.js", "Express", "HTML/CSS/JS", "pm2"],
-    "ports": [3000, 34256],
-    "deployment": "pm2"
+    "name": "AIL — Assistant Instruction Layer",
+    "description": "Controlled AI execution pipeline with three-tier agent architecture",
+    "goal": "Autonomous engineering AI with safe, validated execution",
+    "tech_stack": {
+      "ail_core": ["Python 3.10+"],
+      "openclaw_gateway": ["Node.js 22+", "TypeScript", "pnpm"],
+      "ci_cd": ["GitHub Actions", "Docker", "Google Cloud Run"],
+      "llm": ["OpenAI", "Anthropic", "Mock"]
+    },
+    "architecture": {
+      "president": "AIL Controller (core/ail_controller.py)",
+      "programmer": "OpenCode (agents/opencode/)",
+      "operator": "OpenClaw (agents/openclaw/)"
+    },
+    "deployment": "cloud_run",
+    "repository": "https://github.com/Ldiga174/AIL-Assistant-Instruction-Layer"
   },
   "file_structure": {
     "init": "project.init.md",
-    "checklist": "prestart.checklist", 
+    "architecture_map": "ai-system/project.init.md",
+    "architecture_diagram": "ARCHITECTURE.md",
+    "checklist": "prestart.checklist",
     "log": "ailog.md",
     "tasks": "task.todo.json",
     "meta": "ai.meta.json",
     "success_snapshots": "snapshot.success.md"
   }
-} 
+}

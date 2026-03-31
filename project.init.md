@@ -1,54 +1,70 @@
-# 🧠 AI PROJECT INIT
+# AI PROJECT INIT
 
-## 📌 Описание проекта
-Этот проект создан для демонстрации системы взаимодействия с AI-помощником через структуру логов, чеклистов и правил. Основная цель — запустить красивый AI-дэшборд через сервер, управляемый логикой Cursor.
+## Project
 
-## ✅ Цели
-- Запуск локального AI Dashboard
-- Автоматическая проверка окружения перед запуском
-- Журналирование всех действий через `ailog.md`
-- Строгая инициализация AI через `project.init.md`
+**AIL (Assistant Instruction Layer)** — controlled AI execution pipeline.
+Three-tier architecture: AIL (President) orchestrates OpenCode (Programmer) and OpenClaw (Operator).
 
-## 🧱 Основные файлы проекта
-- `project.init.md` — этот файл
-- `ailog.md` — журнал всех AI-действий
-- `task.todo.json` — текущие задачи
-- `prestart.checklist` — что нужно проверить перед работой
-- `ai.meta.json` — правила поведения Cursor
+## AI Session Protocol
 
-## 🧪 Обязательные проверки перед началом (см. prestart.checklist)
-- Установлен `pm2`
-- Запущен Node.js-сервер
-- Сервер отвечает по порту 3000 или 34256
+1. Read this file on session start
+2. Read `ai-system/project.init.md` — full engineering map
+3. Run prestart checklist (below) if environment is fresh; log results to `ailog.md`
+4. If checklist fails — stop, report, wait for resolution
+5. On success — open `ailog.md`, read current session state
+6. Open `task.todo.json` and work from the top task
+7. After each task: verify, log to `ailog.md`, record in `snapshot.success.md`
+8. On session end: write summary to `ailog.md`, carry over incomplete tasks
 
-## 🧠 Поведение AI
-- Всегда начинай работу с этого файла
-- Проверь `prestart.checklist` перед выполнением любых задач
-- Если checklist не пройден — не продолжай, остановись
-- В случае отсутствия необходимых файлов — спроси, нужно ли их создать
+## Prestart Checklist
 
-## 🚀 После успешной проверки:
-- Загрузи `ailog.md` и прочти "Проблемы на начало сессии" и "План"
-- Начни работу по этим задачам
-- Не выполняй задачи, если они уже отмечены как выполненные
-- По завершении сессии — оформи "Итог сессии" в `ailog.md`
+- [ ] Python 3.10+ available
+- [ ] Node.js 22+ available
+- [ ] pnpm available (for OpenClaw)
+- [ ] `ai-system/.env` configured (LLM keys)
+- [ ] `ai-system/project.init.md` exists and readable
+- [ ] `ailog.md` exists
+- [ ] `task.todo.json` exists
 
-## ✏️ Примечание
-Если этот файл отсутствует — спроси пользователя о необходимости создания, прежде чем продолжить. 
+## Key Files
 
-## 🧱 init.phase: structure
+| File | Purpose |
+|------|---------|
+| `project.init.md` | This file — AI entry point |
+| `ai-system/project.init.md` | Full engineering map (architecture, status, roadmap) |
+| `ARCHITECTURE.md` | High-level architecture diagram |
+| `README.md` | Project overview for GitHub |
+| `ailog.md` | Session log |
+| `task.todo.json` | Task queue |
+| `ai.meta.json` | AI behavior rules |
+| `prestart.checklist` | Detailed prestart checks |
 
-Перед любой работой убедись, что структура проекта соответствует шаблону:
+## Project Structure
 
-/src                — исходный код
-/public             — фронтенд (если есть)
-/docs               — документация
-/config             — конфиги, env, secrets
-/logs               — логи выполнения (по желанию)
-/tools              — утилиты и скрипты
-ailog.md            — журнал сессий
-task.todo.json      — задачи
-ai.meta.json        — правила поведения ассистента
-prestart.checklist  — проверки перед работой
+```
+AIL-Assistant-Instruction-Layer/
++-- ai-system/              AIL execution engine (Python)
+|   +-- core/               Controller, Planner, Router, Validator, Memory
+|   +-- agents/             OpenCode (LLM), OpenClaw (shell), shared models
+|   +-- contracts/          JSON schemas
+|   +-- state/              Runtime state
+|   +-- validations/        Check modules
+|   +-- scripts/            CLI entry points
+|   +-- logs/               Execution logs
+|
++-- .github/workflows/      CI/CD (GitHub Actions -> Cloud Run)
++-- Dockerfile              Container build
++-- ARCHITECTURE.md         Architecture diagram
++-- README.md               Project overview
+```
 
-Если чего-то не хватает — создай и отрази это в ailog.md как "структуризация проекта". Только после этого переходи к prestart-проверкам.
+## Related Repositories
+
+| Repo | Description |
+|------|-------------|
+| `../openclaw/` (sibling) | OpenClaw — multi-channel AI gateway (TypeScript monorepo) |
+| This repo | AIL — orchestration and instruction layer |
+
+## Fundamental Principle
+
+> No agent makes final decisions. Only AIL controls the system.
