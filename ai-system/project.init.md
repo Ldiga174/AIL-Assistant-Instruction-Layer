@@ -265,7 +265,7 @@ Note: these modules are standalone helpers. The core `validator.py` runs its own
 |------|------|-------------|--------|
 | 13 | Task Manifest | Execution record per task (planned, changed, executed) | DONE |
 | 14 | Multi-step Tasks | Task chains with dependencies | DONE |
-| 15 | Agent Memory | Learning from past executions | PLANNED |
+| 15 | Agent Memory | Learning from past executions | DONE |
 | 16 | External Tools | git, docker, cloud API integration | PLANNED |
 | 17 | UI Layer | Pipeline visualization, task management | PLANNED |
 

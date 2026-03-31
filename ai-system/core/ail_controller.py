@@ -32,6 +32,7 @@ from agents.shared.models import (
     TaskStatus,
     ValidationAction,
 )
+from core.agent_memory import AgentMemory
 from core.manifest import build_manifest, save_manifest
 from core.memory import (
     append_log,
@@ -63,12 +64,14 @@ class AILController:
         self.planner = Planner()
         self.router = Router()
         self.validator = Validator()
+        self.memory = AgentMemory()
         self.agents: dict[AgentName, BaseAgent] = {
             AgentName.OPENCODE: OpenCodeAdapter(),
             AgentName.OPENCLAW: OpenClawAdapter(),
         }
         self.step_executor = StepExecutor(self.agents)
         self.session_id = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        self.memory.rebuild()
 
     def handle_goal(
         self,
@@ -78,7 +81,10 @@ class AILController:
         constraints: list[str] | None = None,
     ) -> dict[str, Any]:
         """Entry point for text goals — plans the task, then runs it."""
-        task = self.planner.plan(goal, repo=repo, constraints=constraints)
+        memory_hints = self.memory.recall(goal, top_k=3)
+        task = self.planner.plan(
+            goal, repo=repo, constraints=constraints, memory_hints=memory_hints,
+        )
         return self.handle_task(task)
 
     def handle_task(self, task: Task) -> dict[str, Any]:
@@ -91,6 +97,11 @@ class AILController:
 
         append_log(f"New task received: {task.task_id} — {task.goal}")
         append_log(f"Task {task.task_id} classified: role={task.role.value}")
+
+        memory_ctx = self.memory.to_context(task.goal)
+        if memory_ctx:
+            task.inputs.context.update(memory_ctx)
+            append_log(f"Memory enriched task {task.task_id} with {len(memory_ctx.get('memory', {}).get('relevant_past_tasks', []))} past experiences")
 
         persist_task(task.to_dict(), "incoming")
 
@@ -119,6 +130,7 @@ class AILController:
             task, results, validation_summary, final_status.value, t0,
         )
         manifest_path = save_manifest(manifest)
+        self.memory.rebuild()
         append_log(f"Manifest saved: {manifest.manifest_id}")
 
         self._log_task_summary(task, results, validation_summary)

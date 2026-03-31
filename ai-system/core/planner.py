@@ -14,6 +14,7 @@ Supports:
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from agents.shared.models import (
     AgentName,
@@ -56,6 +57,7 @@ class Planner:
         repo: str = ".",
         constraints: list[str] | None = None,
         steps: list[dict] | None = None,
+        memory_hints: list[dict[str, Any]] | None = None,
     ) -> Task:
         role = self._classify(goal)
 
@@ -64,12 +66,17 @@ class Planner:
         else:
             task_steps = self._generate_steps(goal, role)
 
+        extra_constraints = constraints or []
+        if memory_hints:
+            extra_constraints = list(extra_constraints)
+            extra_constraints.extend(self._constraints_from_memory(memory_hints))
+
         task = Task(
             goal=goal,
             role=role,
             inputs=TaskInputs(
                 repo=repo,
-                constraints=constraints or [],
+                constraints=extra_constraints,
             ),
             expected_output=self._expected_outputs(role),
             steps=task_steps,
@@ -79,6 +86,24 @@ class Planner:
             task.task_id, role.value, len(task_steps),
         )
         return task
+
+    @staticmethod
+    def _constraints_from_memory(
+        memories: list[dict[str, Any]],
+    ) -> list[str]:
+        """Derive constraints from past execution memories."""
+        hints: list[str] = []
+        for mem in memories:
+            if mem.get("decision") == "failed" and mem.get("errors"):
+                err_summary = "; ".join(mem["errors"][:2])
+                hints.append(
+                    f"[memory] Similar task '{mem['goal']}' failed: {err_summary} — avoid this pattern"
+                )
+            elif mem.get("decision") == "done":
+                hints.append(
+                    f"[memory] Similar task '{mem['goal']}' succeeded — consider reusing approach"
+                )
+        return hints
 
     def _classify(self, goal: str) -> TaskRole:
         goal_lower = goal.lower()
