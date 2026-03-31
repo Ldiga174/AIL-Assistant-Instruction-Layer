@@ -45,6 +45,8 @@ ALLOWED_BINARIES: set[str] = {
     "uvicorn",
     "node", "npm", "pnpm", "yarn",
     "docker",
+    "git",
+    "gcloud",
     "ls", "pwd", "echo", "cat",
     "mkdir", "cp", "mv",
 }
