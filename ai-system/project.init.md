@@ -267,7 +267,7 @@ Note: these modules are standalone helpers. The core `validator.py` runs its own
 | 14 | Multi-step Tasks | Task chains with dependencies | DONE |
 | 15 | Agent Memory | Learning from past executions | DONE |
 | 16 | External Tools | git, docker, cloud API integration | DONE |
-| 17 | UI Layer | Pipeline visualization, task management | PLANNED |
+| 17 | UI Layer | Pipeline visualization, task management | DONE |
 
 ---
 
@@ -285,11 +285,17 @@ Only AIL controls the system.
 ```bash
 cd ai-system
 
+# Install dependencies
+pip install -r requirements.txt
+
 # Run a task
 python scripts/run_task.py "Write a healthcheck function" --repo ../
 
 # Run with constraints
 python scripts/run_task.py "Build and deploy" --constraint "do not break api" --repo ../
+
+# Launch Pipeline Dashboard (http://localhost:8080)
+python -m ui.run
 
 # Replay a failed task
 python scripts/replay_task.py tasks/failed/task-00123.json --force
