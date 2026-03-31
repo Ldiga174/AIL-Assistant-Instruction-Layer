@@ -1,0 +1,15 @@
+.git
+node_modules
+logs
+ai-system
+.sandbox
+.cache
+.artifacts
+.github
+.gitignore
+.dockerignore
+Dockerfile
+ecosystem.config.js
+README.md
+snapshot.success.md
+*.log

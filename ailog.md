@@ -111,4 +111,30 @@
 4. Установка зависимостей: `npm install`
 5. Запуск: `pm2 start ecosystem.config.js`
 
-**🧠 AI сессия завершена успешно!** 
+**AI сессия завершена успешно!**
+
+---
+
+## Сессия 2026-03-31 — CI/CD: GitHub Actions + Google Cloud Run
+
+### Цель сессии
+Настроить автоматический деплой AI Dashboard на Google Cloud Run через GitHub Actions.
+
+### Выполненные действия
+1. **Dockerfile** — multi-stage build на `node:22-slim`, оптимизированный для Cloud Run
+2. **.dockerignore** — исключены `.git`, `node_modules`, `logs/`, `ai-system/`
+3. **Artifact Registry** — создан репозиторий `ail-dashboard` в `us-central1`
+4. **Workload Identity Federation** — безключевая авторизация GitHub:
+   - Pool: `github-pool`
+   - Provider: `github-provider` (OIDC, ограничен репозиторием `Ldiga174/AIL-Assistant-Instruction-Layer`)
+   - Service Account: `github-deploy@focused-service-453112-f1.iam.gserviceaccount.com`
+   - Роли: `run.admin`, `artifactregistry.writer`, `iam.serviceAccountUser`
+5. **GitHub Secrets** — установлены `GCP_PROJECT_ID`, `WIF_PROVIDER`, `WIF_SERVICE_ACCOUNT`
+6. **GitHub Actions workflow** — `.github/workflows/deploy.yml`:
+   - Trigger: push в `main`
+   - Build Docker image, push в Artifact Registry, deploy на Cloud Run
+   - Сервис: `ai-dashboard`, регион: `us-central1`, публичный доступ
+7. **Обновлены проектные файлы** — `prestart.checklist`, `task.todo.json`
+
+### Результат
+CI/CD пайплайн готов. При пуше в `main` происходит автоматическая сборка и деплой на Cloud Run. 

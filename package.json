@@ -1,14 +1,14 @@
 {
-  "name": "aiproject",
+  "name": "ai-dashboard",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node app.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "Ldiga174",
   "license": "ISC",
-  "description": "",
+  "description": "AI Dashboard — project monitor on Cloud Run",
   "dependencies": {
     "express": "^5.1.0"
   }

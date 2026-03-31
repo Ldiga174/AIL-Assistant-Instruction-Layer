@@ -3,12 +3,10 @@ const path = require('path');
 const fs = require('fs');
 const app = express();
 
-// Конфигурация
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';
+const ENV = process.env.K_SERVICE ? 'Cloud Run' : 'Local';
 
-// Middleware
-app.use(express.static('public'));
 app.use(express.json());
 
 // Функция для чтения файлов проекта
@@ -206,8 +204,8 @@ app.get('/', (req, res) => {
                     <span class="metric-value">${process.version}</span>
                 </div>
                 <div class="metric">
-                    <span class="metric-label">PM2</span>
-                    <span class="metric-value">✅ Готов</span>
+                    <span class="metric-label">Platform</span>
+                    <span class="metric-value">${ENV}</span>
                 </div>
             </div>
             

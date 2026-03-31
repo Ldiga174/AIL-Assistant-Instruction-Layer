@@ -1,45 +1,56 @@
-# 🧪 PRESTART CHECKLIST
+# PRESTART CHECKLIST
 
 ## Обязательные проверки перед началом работы
 
-### ✅ Системные требования
+### Системные требования (локальная разработка)
 - [ ] Node.js установлен (версия 16+)
-- [ ] npm/yarn доступен
-- [ ] pm2 установлен глобально (`npm install -g pm2`)
+- [ ] npm доступен
+- [ ] Docker установлен (для локальной сборки образа)
 
-### 🚀 Сервер
-- [ ] Node.js-сервер запущен
-- [ ] Сервер отвечает по порту 3000 ИЛИ 34256
-- [ ] Нет конфликтов портов
+### Cloud Run (продакшн)
+- [ ] GCP проект `focused-service-453112-f1` доступен
+- [ ] gcloud CLI авторизован (`gcloud auth list`)
+- [ ] Cloud Run API включён
+- [ ] Artifact Registry репозиторий `ail-dashboard` существует (us-central1)
+- [ ] Сервис `ai-dashboard` развёрнут на Cloud Run
+- [ ] Сервис отвечает по HTTPS URL
 
-### 📁 Файловая структура
+### GitHub Actions CI/CD
+- [ ] Workflow `.github/workflows/deploy.yml` существует
+- [ ] GitHub секреты настроены (GCP_PROJECT_ID, WIF_PROVIDER, WIF_SERVICE_ACCOUNT)
+- [ ] Workload Identity Federation настроена (github-pool / github-provider)
+- [ ] Последний деплой прошёл успешно (`gh run list`)
+
+### Файловая структура
 - [ ] `project.init.md` существует
 - [ ] `ailog.md` существует
 - [ ] `task.todo.json` существует
 - [ ] `ai.meta.json` существует
+- [ ] `Dockerfile` существует
+- [ ] `.github/workflows/deploy.yml` существует
 
-### 🔍 Тестовые команды
+### Тестовые команды
 ```bash
 # Проверка Node.js
 node --version
 
-# Проверка pm2
-pm2 --version
+# Проверка GCP
+gcloud config get-value project
+gcloud run services describe ai-dashboard --region=us-central1 --format="value(status.url)"
 
-# Проверка портов
-netstat -tulpn | grep :3000
-netstat -tulpn | grep :34256
+# Проверка GitHub Actions
+gh run list --repo Ldiga174/AIL-Assistant-Instruction-Layer --limit 5
 
-# Проверка доступности сервера
-curl -I http://localhost:3000 || curl -I http://localhost:34256
+# Проверка доступности (подставь реальный URL)
+curl -I https://ai-dashboard-xaypxpukaa-uc.a.run.app
 ```
 
-## ❌ СТОП! Если какая-либо проверка не пройдена:
+## СТОП! Если какая-либо проверка не пройдена:
 - Не продолжай выполнение задач
 - Зафиксируй проблему в `ailog.md`
 - Сообщи пользователю о проблеме
 - Дождись решения проблемы
 
-## ✅ При успешном прохождении всех проверок:
+## При успешном прохождении всех проверок:
 - Зафиксируй успех в `ailog.md`
-- Переходи к выполнению задач из `task.todo.json` 
+- Переходи к выполнению задач из `task.todo.json`
