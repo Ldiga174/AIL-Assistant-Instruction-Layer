@@ -8,13 +8,14 @@ Three-tier architecture: AIL (President) orchestrates OpenCode (Programmer) and 
 ## AI Session Protocol
 
 1. Read this file on session start
-2. Read `ai-system/project.init.md` — full engineering map
-3. Run prestart checklist (below) if environment is fresh; log results to `ailog.md`
-4. If checklist fails — stop, report, wait for resolution
-5. On success — open `ailog.md`, read current session state
-6. Open `task.todo.json` and work from the top task
-7. After each task: verify, log to `ailog.md`, record in `snapshot.success.md`
-8. On session end: write summary to `ailog.md`, carry over incomplete tasks
+2. Read `ail.errors.md` — mandatory no-repeat error register
+3. Read `ai-system/project.init.md` — full engineering map
+4. Run prestart checklist (below) if environment is fresh; log results to `ailog.md`
+5. If checklist fails — stop, report, wait for resolution
+6. On success — open `ailog.md`, read current session state
+7. Open `task.todo.json` and work from the top task
+8. After each task: verify, log to `ailog.md`, record in `snapshot.success.md`
+9. On session end: write summary to `ailog.md`, carry over incomplete tasks
 
 ## Prestart Checklist
 
@@ -35,6 +36,8 @@ Three-tier architecture: AIL (President) orchestrates OpenCode (Programmer) and 
 | `ARCHITECTURE.md` | High-level architecture diagram |
 | `README.md` | Project overview for GitHub |
 | `ailog.md` | Session log |
+| `ail.errors.md` | Project-specific no-repeat error register |
+| `ail.errors.common.template.md` | Reusable template for global AIL |
 | `task.todo.json` | Task queue |
 | `ai.meta.json` | AI behavior rules |
 | `prestart.checklist` | Detailed prestart checks |
