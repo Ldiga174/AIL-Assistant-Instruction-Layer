@@ -110,6 +110,10 @@ GitHub Issue labeled ail-task
 -> user/agent executes it under AIL workflow
 ```
 
+AutoTasks solves one practical problem: the owner can create work in GitHub,
+while local execution remains controlled by AIL rules and explicit user review.
+The watcher only moves task text into the local inbox.
+
 ## Required Tools for AutoTasks
 
 - GitHub CLI: `gh`
@@ -121,6 +125,94 @@ Auth check:
 
 ```bash
 gh auth status
+```
+
+## AutoTasks State Files
+
+AutoTasks stores lightweight metadata in `.ail/state/`:
+
+| File | Purpose |
+|---|---|
+| `.ail/state/last_issue_number` | Last issue number observed by the watcher |
+| `.ail/state/current_issue_number` | Issue number currently written to inbox |
+| `.ail/state/current_issue_url` | GitHub URL for the active inbox task |
+
+The active task body is written to:
+
+```text
+.ail/inbox/current-task.md
+```
+
+The agent writes the latest execution result to:
+
+```text
+.ail/outbox/last-result.md
+```
+
+## AutoTasks Watcher
+
+Reusable watcher template:
+
+```text
+templates/ail-3.0/.ail/scripts/ail-watch-issues.sh
+```
+
+Usage:
+
+```bash
+AIL_REPO="owner/repo" .ail/scripts/ail-watch-issues.sh 20
+```
+
+Or:
+
+```bash
+.ail/scripts/ail-watch-issues.sh 20 owner/repo
+```
+
+Defaults:
+
+- label: `ail-task`
+- polling interval: `20` seconds
+- task inbox: `.ail/inbox/current-task.md`
+
+The watcher:
+
+- fetches open GitHub issues with the `ail-task` label;
+- selects the most recently updated issue;
+- writes issue title, URL, and body into `.ail/inbox/current-task.md`;
+- writes issue metadata into `.ail/state/`;
+- sends a desktop notification when `notify-send` is available;
+- opens the inbox file when the VS Code `code` CLI is available;
+- keeps retrying on temporary GitHub or network errors.
+
+## VS Code AutoTasks Task
+
+Reusable VS Code task template:
+
+```text
+templates/ail-3.0/.vscode/tasks.json
+```
+
+Example:
+
+```json
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "AIL: Watch GitHub Issues",
+      "type": "shell",
+      "command": ".ail/scripts/ail-watch-issues.sh 20",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": false
+      }
+    }
+  ]
+}
 ```
 
 ## Recommended Codex Command
@@ -136,6 +228,9 @@ After completion:
 - comment result in the source GitHub issue
 - close the issue if completed
 ```
+
+This command is intentionally a user-approved execution step. AutoTasks does
+not run Codex, Cline, Roo, Continue, shell commands, or code edits by itself.
 
 ## Safety Rules
 

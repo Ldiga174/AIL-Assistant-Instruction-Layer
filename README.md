@@ -125,6 +125,29 @@ python scripts/replay_task.py tasks/failed/task-00123.json --force
 python scripts/export_logs.py --output report.md
 ```
 
+## AIL 3.0 AutoTasks
+
+AIL 3.0 includes an AutoTasks workflow for controlled GitHub Issue intake:
+
+```text
+GitHub Issue labeled ail-task
+-> local watcher writes .ail/inbox/current-task.md
+-> agent reads the inbox task under AIL workflow
+-> result is written to .ail/outbox/last-result.md
+```
+
+AutoTasks does not execute agents automatically. It only imports tasks,
+stores metadata in `.ail/state/`, and optionally notifies or opens VS Code.
+
+Reusable templates are available under:
+
+```text
+templates/ail-3.0/
+```
+
+See `docs/AIL-3.0.md` for watcher usage, VS Code task integration, and the
+recommended Codex/Cline/Roo command.
+
 ## Контракт взаимодействия
 
 ### Формат задачи

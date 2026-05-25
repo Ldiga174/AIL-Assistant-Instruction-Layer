@@ -153,3 +153,19 @@ CI/CD пайплайн готов. При пуше в `main` происходи�
 
 ### Результат
 Реестр ошибок встроен в процесс инициализации проекта и учитывается наравне с AIL-файлами.
+
+## Session 2026-05-25 — AutoTasks workflow template
+
+### Goal
+Execute GitHub Issue #2: add reusable AutoTasks intake documentation and templates for AIL 3.0.
+
+### Completed
+- Documented AutoTasks state files, watcher behavior, VS Code task usage, and safe agent handoff in `docs/AIL-3.0.md`.
+- Added a short README entry pointing to AutoTasks and reusable templates.
+- Added `templates/ail-3.0/.ail/scripts/ail-watch-issues.sh`.
+- Added template inbox, outbox, state, and VS Code task files under `templates/ail-3.0/`.
+
+### Validation
+- `bash -n templates/ail-3.0/.ail/scripts/ail-watch-issues.sh` passed.
+- `python3 -m json.tool templates/ail-3.0/.vscode/tasks.json` passed.
+- Markdown/template file listing completed.
