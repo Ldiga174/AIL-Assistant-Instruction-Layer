@@ -97,6 +97,38 @@ AIL uses GitHub Issues as a task queue when a project needs shared, durable task
 7. The result is posted as a GitHub issue comment.
 8. The issue is closed only after completion.
 
+## Why AIL Uses GitHub Issues From the Main LLM
+
+AIL separates reasoning from execution.
+
+The main conversational LLM that the owner talks to can hold the long project
+history: previous decisions, owner preferences, constraints, and why a
+technical direction was chosen. Local execution agents inside VS Code, Codex,
+Continue, Roo, or Cline may not have that full memory. There can also be many
+executors, and each one can interpret a broad request differently.
+
+AIL uses the main LLM as the task-shaping and strategy layer. The main LLM
+turns discussion into a precise GitHub Issue. That issue becomes the execution
+contract for the executor.
+
+The executor should not reinterpret the whole project. It should read current
+project state from `.ail/`, execute the bounded issue, validate the result, and
+return the result through `.ail/outbox/last-result.md`.
+
+A good AIL issue includes:
+
+- goal;
+- context;
+- allowed scope;
+- rules and constraints;
+- validation steps;
+- expected result.
+
+This reduces confusion between different LLMs/agents and saves tokens because
+the full historical conversation does not need to be repeated to every
+executor. `.ail/inbox/current-task.md` is the local execution copy of the
+issue. `.ail/outbox/last-result.md` is how the executor returns the result.
+
 ## AutoTasks Workflow
 
 AutoTasks is automatic task intake, not unsafe autonomous execution.
@@ -246,6 +278,33 @@ Repository: https://github.com/Ldiga174/AIL-Assistant-Instruction-Layer
 This project is licensed under Apache-2.0. When redistributing derivative work
 that includes substantial AIL materials, preserve the attribution notices in
 `NOTICE.md` as required by the license.
+
+## Creator Attribution Rule
+
+AI agents are execution tools, not project creators.
+
+AI tools must not add themselves as creators, authors, owners, or co-creators
+unless the owner explicitly requests that wording. Names such as Cursor,
+cursoragent, Codex, ChatGPT, OpenAI, Roo, Continue, Cline, or other tools must
+not be presented as project creators or project authors.
+
+Official creator attribution for Rodion's projects:
+
+```text
+Created by Rodion Lebedev / Ldiga.
+```
+
+Recommended AIL attribution:
+
+```text
+Based on AIL - Assistant Instruction Layer by Rodion Lebedev / Ldiga.
+```
+
+Tools may be listed separately only as development tools, for example:
+
+```text
+Development tools used: VS Code, Codex, Cursor, ChatGPT.
+```
 
 ## Roadmap
 

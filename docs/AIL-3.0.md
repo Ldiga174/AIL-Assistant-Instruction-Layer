@@ -120,6 +120,33 @@ Owner creates issue
 -> issue closes only after completion
 ```
 
+## Why AIL Uses GitHub Issues From the Main LLM
+
+AIL separates reasoning from execution.
+
+The main LLM may know the long project history, owner preferences, previous
+decisions, constraints, and why a specific technical direction was chosen.
+Execution agents may not have that memory. Multiple executors can also
+interpret broad requests differently when they do not share the same context.
+
+Therefore the main LLM produces a precise GitHub Issue as an execution
+contract. The executor should not reinterpret the whole project. It should
+execute the bounded task, validate it, and return the result.
+
+This contract reduces confusion between different LLMs/agents and saves tokens.
+The executor only needs:
+
+- current project state from `.ail/`;
+- the precise task from GitHub Issue or `.ail/inbox/current-task.md`;
+- allowed scope;
+- rules and constraints;
+- validation steps;
+- expected output.
+
+The issue should include goal, context, scope, rules, validation, and expected
+result. `.ail/inbox/current-task.md` is the local execution copy of the issue.
+`.ail/outbox/last-result.md` is how the executor returns the result.
+
 ## AutoTasks
 
 AIL 3.0 introduces AutoTasks.
@@ -274,6 +301,33 @@ It must not:
 - store tokens in repo;
 - modify unrelated project files;
 - close issues without task completion.
+
+## Creator Attribution Rule
+
+AI agents are execution tools, not project creators.
+
+AI tools must not add themselves as creators, authors, owners, or co-creators
+unless the owner explicitly requests that wording. Names such as Cursor,
+cursoragent, Codex, ChatGPT, OpenAI, Roo, Continue, Cline, or other tools must
+not be presented as project creators or project authors.
+
+Official creator attribution for Rodion's projects:
+
+```text
+Created by Rodion Lebedev / Ldiga.
+```
+
+Recommended AIL attribution:
+
+```text
+Based on AIL - Assistant Instruction Layer by Rodion Lebedev / Ldiga.
+```
+
+Tools may be listed separately only as development tools, for example:
+
+```text
+Development tools used: VS Code, Codex, Cursor, ChatGPT.
+```
 
 ## Validation Rules
 

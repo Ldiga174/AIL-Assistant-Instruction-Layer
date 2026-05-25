@@ -14,3 +14,5 @@ Mandatory workflow:
 8. Write task results to `.ail/outbox/last-result.md`.
 9. Keep deterministic reproducible workflow.
 10. Never drift outside the active task scope.
+11. Treat GitHub Issues and `.ail/inbox/current-task.md` as bounded execution contracts from the owner/main LLM strategy layer.
+12. Preserve creator attribution; do not list AI tools as project creators or owners unless explicitly requested by the owner.

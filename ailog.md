@@ -232,3 +232,20 @@ Execute GitHub Issue #5: ensure future commits are authored by the project creat
 
 ### Recommendation
 Do not rewrite old `cursoragent` commits yet. Rewriting history changes commit hashes and requires force push coordination. Future commits from this local repository will use `Ldiga <lrsrider@gmail.com>`.
+
+## Session 2026-05-25 — Main LLM issue rationale and creator attribution rules
+
+### Goal
+Execute GitHub Issue #6: document why AIL uses main LLM shaped GitHub Issues and add creator attribution rules for agents/tools.
+
+### Completed
+- Added `Why AIL Uses GitHub Issues From the Main LLM` to README and `docs/AIL-3.0.md`.
+- Added `Creator Attribution Rule` to README, `docs/AIL-3.0.md`, `ATTRIBUTION.md`, `NOTICE.md`, and starter templates.
+- Added main LLM to issue to executor protocol to `project.init.md`.
+- Reinforced that AI tools are development/execution tools, not project creators.
+
+### Validation
+- Markdown files listed and inspected for readability.
+- Rationale is visible in main docs.
+- Creator attribution rule is visible in main docs and templates.
+- No accusations against any tool or company were added.

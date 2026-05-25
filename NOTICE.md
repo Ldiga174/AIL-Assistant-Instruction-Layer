@@ -11,3 +11,7 @@ documentation.
 
 When redistributing this project or derivative works that include substantial
 AIL materials, preserve this NOTICE attribution where reasonably visible.
+
+AI tools and execution agents are not project creators or owners unless the
+project owner explicitly says otherwise. They may be listed separately as
+development tools.

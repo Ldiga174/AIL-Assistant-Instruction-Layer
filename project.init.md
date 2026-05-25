@@ -87,6 +87,35 @@ VS Code task template:
 templates/ail-3.0/.vscode/tasks.json
 ```
 
+## Main LLM to Issue to Executor Protocol
+
+AIL separates reasoning from execution.
+
+The owner may discuss strategy with a main LLM that has the long project
+history and current direction. Execution agents may not have that memory.
+Therefore the main LLM should turn discussion into a precise GitHub Issue with
+goal, context, scope, rules, validation, and expected result. The executor reads
+the issue through `.ail/inbox/current-task.md`, performs the bounded task, and
+returns the result through `.ail/outbox/last-result.md`.
+
+This reduces confusion across different agents and saves tokens because the
+full historical discussion does not need to be repeated for every executor.
+
+## Creator Attribution Rule
+
+AI agents are execution tools, not project creators.
+
+Official creator attribution for Rodion's projects:
+
+```text
+Created by Rodion Lebedev / Ldiga.
+```
+
+Tools such as Cursor, cursoragent, Codex, ChatGPT, OpenAI, Roo, Continue, and
+Cline may be listed as development tools only. They must not be represented as
+project creators, authors, owners, or co-creators unless the owner explicitly
+requests that wording.
+
 ## Version Status
 
 Current direction: AIL 3.0 documentation and reusable templates.
