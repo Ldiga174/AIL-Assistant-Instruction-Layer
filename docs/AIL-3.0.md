@@ -1,6 +1,6 @@
-# AIL 3.0 — Assistant Instruction Layer
+# AIL 3.0 - Assistant Instruction Layer
 
-## Purpose
+## What AIL 3.0 Is
 
 AIL 3.0 is a practical AI workflow layer for real development work with VS Code, Codex, Continue, Roo, Cline, GitHub Issues, and local project memory.
 
@@ -26,6 +26,17 @@ AIL is the orchestration layer.
 Agents are execution layers.
 
 Agents must not randomly rewrite architecture, skip logs, or work without reading project state.
+
+## Roles
+
+| Role | Responsibility |
+|---|---|
+| Owner | Sets goals, approves risky changes, owns final decisions |
+| Architect AI / ChatGPT | Helps split work into issues and clarify scope |
+| GitHub Issues | Durable task queue and audit trail |
+| VS Code | Local execution surface and background task runner |
+| Execution Agents | Codex, Continue, Roo, Cline, or other tools that perform the work |
+| AIL | Workflow rules, memory, inbox/outbox protocol, and validation discipline |
 
 ## AIL 3.0 Project Layout
 
@@ -93,6 +104,20 @@ inspect
 -> update ailog
 -> update outbox
 -> comment/push when required
+```
+
+## GitHub Issues Workflow
+
+AIL 3.0 can use GitHub Issues as the external queue:
+
+```text
+Owner creates issue
+-> issue gets label ail-task
+-> watcher imports it to .ail/inbox/current-task.md
+-> agent executes after user approval
+-> result is written to .ail/outbox/last-result.md
+-> result is commented back to GitHub
+-> issue closes only after completion
 ```
 
 ## AutoTasks
@@ -250,6 +275,19 @@ It must not:
 - modify unrelated project files;
 - close issues without task completion.
 
+## Validation Rules
+
+Every task should define validation before completion. Validation may include:
+
+- syntax checks;
+- tests;
+- builds;
+- API route checks;
+- local smoke tests;
+- manual verification notes when automation is not available.
+
+If validation cannot run, the result must state why.
+
 ## Difference from AIL 2.0
 
 AIL 2.0 was more tied to a specific President/OpenCode/OpenClaw structure.
@@ -262,6 +300,44 @@ AIL 3.0 is more practical and portable:
 - keeps deterministic markdown state;
 - can be copied into any project;
 - avoids forcing OpenClaw-specific architecture.
+
+## AIL 2.0 Concepts Preserved
+
+- deterministic startup protocol;
+- `project.init.md` as entry point;
+- `ailog.md` as session log;
+- `task.todo.json` as task state;
+- `snapshot.success.md` as stable checkpoint;
+- prestart/checklist mindset;
+- no-repeat errors and durable memory;
+- validation before success;
+- no architecture changes without approval;
+- owner remains final authority.
+
+## Minimal Install / Copy Pack
+
+Copy the starter pack into a project:
+
+```bash
+cp -R templates/ail-3.0/. /path/to/project/
+```
+
+Then edit `.ail/project.init.md` and `.ail/task.todo.json`.
+
+Optional AutoTasks command:
+
+```bash
+AIL_REPO="owner/repo" .ail/scripts/ail-watch-issues.sh 20
+```
+
+## Roadmap
+
+- Publish complete AIL 3.0 starter pack.
+- Add attribution and NOTICE files.
+- Add example project integrations.
+- Add validation recipes for common stacks.
+- Add optional helpers for issue comments and result upload.
+- Keep AutoTasks as intake-only unless owner explicitly approves stronger automation.
 
 ## Minimal Success Criteria
 

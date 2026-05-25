@@ -169,3 +169,19 @@ Execute GitHub Issue #2: add reusable AutoTasks intake documentation and templat
 - `bash -n templates/ail-3.0/.ail/scripts/ail-watch-issues.sh` passed.
 - `python3 -m json.tool templates/ail-3.0/.vscode/tasks.json` passed.
 - Markdown/template file listing completed.
+
+## Session 2026-05-25 — AIL 3.0 main documentation rewrite
+
+### Goal
+Execute GitHub Issue #3: rewrite main documentation to full AIL 3.0 and preserve useful AIL 2.0 workflow principles.
+
+### Completed
+- Rewrote `README.md` as a public AIL 3.0 overview.
+- Rewrote `project.init.md` as a portable AIL 3.0 repository entry point.
+- Expanded `docs/AIL-3.0.md` with roles, GitHub Issues workflow, validation rules, install pack, preserved AIL 2.0 concepts, and roadmap.
+- Expanded `templates/ail-3.0/` with starter `.ail/` files for agents, bootstrap, project init, task state, memory, and snapshots.
+
+### Validation
+- `find . -maxdepth 4 -name '*.md' -print` completed.
+- `bash -n templates/ail-3.0/.ail/scripts/ail-watch-issues.sh` passed.
+- `python3 -m json.tool templates/ail-3.0/.vscode/tasks.json` passed.

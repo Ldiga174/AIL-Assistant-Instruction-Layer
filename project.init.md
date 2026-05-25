@@ -1,73 +1,117 @@
-# AI PROJECT INIT
+# AIL 3.0 Project Init
 
 ## Project
 
-**AIL (Assistant Instruction Layer)** — controlled AI execution pipeline.
-Three-tier architecture: AIL (President) orchestrates OpenCode (Programmer) and OpenClaw (Operator).
+AIL 3.0 - portable Assistant Instruction Layer for controlled AI-assisted project execution.
 
-## AI Session Protocol
+This repository defines a reusable workflow layer that can be copied into any software project. AIL coordinates task intake, project context, execution rules, validation, logging, and result handoff for agents such as Codex, Continue, Roo, Cline, and other AI development tools.
 
-1. Read this file on session start
-2. Read `ail.errors.md` — mandatory no-repeat error register
-3. Read `ai-system/project.init.md` — full engineering map
-4. Run prestart checklist (below) if environment is fresh; log results to `ailog.md`
-5. If checklist fails — stop, report, wait for resolution
-6. On success — open `ailog.md`, read current session state
-7. Open `task.todo.json` and work from the top task
-8. After each task: verify, log to `ailog.md`, record in `snapshot.success.md`
-9. On session end: write summary to `ailog.md`, carry over incomplete tasks
+AIL is not only a President/OpenCode/OpenClaw system. Those AIL 2.0 concepts remain as historical and architectural references, but AIL 3.0 generalizes the useful parts into a practical project protocol.
 
-## Prestart Checklist
+## Current Repo Purpose
 
-- [ ] Python 3.10+ available
-- [ ] Node.js 22+ available
-- [ ] pnpm available (for OpenClaw)
-- [ ] `ai-system/.env` configured (LLM keys)
-- [ ] `ai-system/project.init.md` exists and readable
-- [ ] `ailog.md` exists
-- [ ] `task.todo.json` exists
+- Define AIL 3.0 workflow rules and documentation.
+- Provide reusable `.ail/` starter templates.
+- Provide AutoTasks GitHub Issue intake templates.
+- Preserve useful AIL 2.0 concepts: deterministic startup, task state, session log, validation, no-repeat memory, and owner authority.
+- Keep historical prototype code as reference without making it the required architecture for new projects.
+
+## AIL 3.0 Architecture
+
+```text
+Owner / Architect AI
+-> GitHub Issues or local task source
+-> .ail/inbox/current-task.md
+-> Execution agent under .ail/AGENTS.md rules
+-> minimal patch + validation
+-> .ail/outbox/last-result.md
+-> .ail/ailog.md
+-> GitHub issue comment / close when complete
+```
 
 ## Key Files
 
 | File | Purpose |
-|------|---------|
-| `project.init.md` | This file — AI entry point |
-| `ai-system/project.init.md` | Full engineering map (architecture, status, roadmap) |
-| `ARCHITECTURE.md` | High-level architecture diagram |
-| `README.md` | Project overview for GitHub |
-| `ailog.md` | Session log |
-| `ail.errors.md` | Project-specific no-repeat error register |
-| `ail.errors.common.template.md` | Reusable template for global AIL |
-| `task.todo.json` | Task queue |
-| `ai.meta.json` | AI behavior rules |
-| `prestart.checklist` | Detailed prestart checks |
+|---|---|
+| `README.md` | Public AIL 3.0 overview |
+| `docs/AIL-3.0.md` | Detailed AIL 3.0 workflow documentation |
+| `templates/ail-3.0/` | Copyable starter pack for projects |
+| `project.init.md` | This AI entry point |
+| `ailog.md` | Repository session log |
+| `task.todo.json` | Local task state |
+| `snapshot.success.md` | Stable checkpoint record |
+| `ail.errors.md` | Project no-repeat error register |
+| `ail.errors.common.template.md` | Reusable no-repeat error template |
+| `ai-system/` | Historical AIL 2.0 prototype and engine reference |
 
-## Project Structure
+## Startup Protocol
 
+Before changing this repository:
+
+1. Read `project.init.md`.
+2. Read `ail.errors.md`.
+3. Read `ailog.md`.
+4. Read `task.todo.json`.
+5. Inspect relevant repository structure.
+6. Create a short execution plan.
+7. Patch minimally.
+8. Validate changed docs/scripts/templates.
+9. Update `ailog.md`.
+10. Comment result in the source GitHub issue when applicable.
+
+## AutoTasks Protocol
+
+AutoTasks imports tasks. It does not execute them automatically.
+
+```text
+GitHub Issue labeled ail-task
+-> watcher writes .ail/inbox/current-task.md
+-> watcher stores .ail/state metadata
+-> user asks agent to execute
+-> agent validates and writes .ail/outbox/last-result.md
+-> result is commented back to GitHub
 ```
-AIL-Assistant-Instruction-Layer/
-+-- ai-system/              AIL execution engine (Python)
-|   +-- core/               Controller, Planner, Router, Validator, Memory
-|   +-- agents/             OpenCode (LLM), OpenClaw (shell), shared models
-|   +-- contracts/          JSON schemas
-|   +-- state/              Runtime state
-|   +-- validations/        Check modules
-|   +-- scripts/            CLI entry points
-|   +-- logs/               Execution logs
-|
-+-- .github/workflows/      CI/CD (GitHub Actions -> Cloud Run)
-+-- Dockerfile              Container build
-+-- ARCHITECTURE.md         Architecture diagram
-+-- README.md               Project overview
+
+Reusable watcher:
+
+```text
+templates/ail-3.0/.ail/scripts/ail-watch-issues.sh
 ```
 
-## Related Repositories
+VS Code task template:
 
-| Repo | Description |
-|------|-------------|
-| `../openclaw/` (sibling) | OpenClaw — multi-channel AI gateway (TypeScript monorepo) |
-| This repo | AIL — orchestration and instruction layer |
+```text
+templates/ail-3.0/.vscode/tasks.json
+```
+
+## Version Status
+
+Current direction: AIL 3.0 documentation and reusable templates.
+
+Historical prototype status: the older `ai-system/` runtime remains in the repo as reference, but it is not the required execution model for AIL 3.0 projects.
+
+## Migration Note From AIL 2.0
+
+AIL 2.0 introduced useful principles:
+
+- deterministic startup;
+- project init entry point;
+- session log;
+- task state;
+- stable snapshots;
+- no-repeat error memory;
+- validation before success;
+- owner approval for architecture changes.
+
+AIL 3.0 keeps those principles and adds:
+
+- GitHub Issues as task queue;
+- `.ail/inbox/current-task.md`;
+- `.ail/outbox/last-result.md`;
+- AutoTasks watcher;
+- VS Code task integration;
+- agent-neutral execution rules.
 
 ## Fundamental Principle
 
-> No agent makes final decisions. Only AIL controls the system.
+The owner remains the final authority. AIL controls workflow. Agents execute under explicit project rules.

@@ -1,195 +1,240 @@
-# AIL — Assistant Instruction Layer
+# AIL 3.0 - Assistant Instruction Layer
 
-Трёхуровневая система управления AI-агентами для автоматизации разработки и операций.
+AIL 3.0 is a portable workflow layer for controlled AI-assisted project execution.
 
-## Архитектура
+It gives owners and AI agents a deterministic operating protocol: task intake, project context, planning, minimal patching, validation, logging, and result handoff. AIL can be copied into any repository and used with VS Code, GitHub Issues, Codex, Continue, Roo, Cline, or other execution agents.
 
-```
-┌─────────────────────────────────────────────────────┐
-│                     OWNER                           │
-│        (ставит цель, утверждает результат)          │
-└──────────────────────┬──────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────┐
-│                AIL / President                       │
-│  ┌──────────┐ ┌────────┐ ┌───────────┐ ┌────────┐  │
-│  │ Planner  │ │ Router │ │ Validator │ │ Memory │  │
-│  └──────────┘ └────────┘ └───────────┘ └────────┘  │
-│         Единственная точка принятия решений          │
-└───────────┬─────────────────────┬───────────────────┘
-            │                     │
-┌───────────▼──────────┐ ┌───────▼────────────────────┐
-│     OpenCode         │ │       OpenClaw              │
-│   (программист)      │ │  (операционный исполнитель) │
-│                      │ │                             │
-│ • анализ кодовой базы│ │ • выполнение команд ОС     │
-│ • создание кода      │ │ • запуск сборки/тестов     │
-│ • исправление багов  │ │ • деплой                   │
-│ • подготовка команд  │ │ • проверка результата      │
-└──────────────────────┘ └─────────────────────────────┘
+AIL is not tied to OpenClaw, OpenCode, DPA Compute, or any single IDE. Older AIL 2.0 ideas are preserved as reusable workflow principles, while AIL 3.0 focuses on practical project execution.
+
+## Why It Exists
+
+AI agents are useful only when they work inside stable project rules. Without an orchestration layer they can skip context, repeat errors, rewrite unrelated architecture, forget validation, or lose task state between sessions.
+
+AIL exists to make AI-assisted work reproducible:
+
+```text
+Owner defines the task
+-> GitHub Issue or local inbox stores the task
+-> agent reads project state
+-> agent inspects architecture
+-> agent creates a short plan
+-> agent patches minimally
+-> agent validates
+-> agent documents the result
+-> AIL log preserves what happened
 ```
 
-## Принцип
+## Core Principle
 
-> **OpenCode** не выполняет системные команды.
-> **OpenClaw** не определяет стратегию.
-> **AIL** управляет обоими и остаётся единственной точкой принятия решений.
+AIL is the orchestration layer. Agents are execution layers.
 
-## Типы задач
+The owner remains the final authority. Agents may inspect, plan, patch, test, and report, but they should not rewrite architecture, run destructive actions, or declare success without validation.
 
-| Тип | Описание | Агент |
-|-----|----------|-------|
-| `code` | Написание/изменение кода, проектирование | OpenCode |
-| `exec` | Команды ОС, деплой, запуск сервисов | OpenClaw |
-| `hybrid` | Код + операции (сборка + деплой) | Оба |
+## Roles
 
-## Жизненный цикл задачи
+| Role | Responsibility |
+|---|---|
+| Owner | Defines goals, approves risky changes, decides final direction |
+| Architect AI / ChatGPT | Breaks goals into issues, clarifies scope, reviews strategy |
+| GitHub Issues | External task queue and audit trail |
+| VS Code | Local execution environment and task runner |
+| Execution Agents | Codex, Continue, Roo, Cline, or other tools that execute AIL tasks |
+| AIL | Deterministic workflow, memory, safety rules, and result protocol |
 
-```
-1. Owner формулирует цель
-2. AIL создаёт task_id и классифицирует: code / exec / hybrid
-3. AIL создаёт план шагов
-4. AIL отправляет шаги агентам (OpenCode / OpenClaw)
-5. Агенты возвращают структурированный результат
-6. AIL валидирует результат
-7. При ошибке — цикл исправления (до max_retries)
-8. При успехе — задача завершена
-```
+## Standard `.ail/` Structure
 
-## Структура проекта
+```text
+.ail/
+├── AGENTS.md
+├── bootstrap.md
+├── project.init.md
+├── ailog.md
+├── task.todo.json
+├── memory.md
+├── snapshot.success.md
+├── inbox/
+│   └── current-task.md
+├── outbox/
+│   └── last-result.md
+├── state/
+│   ├── .gitkeep
+│   ├── last_issue_number
+│   ├── current_issue_number
+│   └── current_issue_url
+└── scripts/
+    └── ail-watch-issues.sh
 
-```
-ai-system/
-├── project.init.md          — описание архитектуры
-├── .env.example             — пример конфигурации
-├── logs/                    — логи выполнения
-│   ├── ailog.md
-│   ├── sessions/
-│   └── tasks/
-├── state/                   — runtime-состояние
-│   ├── task.todo.json
-│   ├── agents.state.json
-│   └── routing.state.json
-├── contracts/               — JSON-схемы контрактов
-│   ├── task.schema.json
-│   ├── result.schema.json
-│   └── validation.schema.json
-├── core/                    — ядро AIL
-│   ├── ail_controller.py    — главный контроллер (President)
-│   ├── router.py            — маршрутизация задач
-│   ├── validator.py         — валидация результатов
-│   ├── planner.py           — планирование шагов
-│   └── memory.py            — управление состоянием
-├── agents/                  — агенты-исполнители
-│   ├── opencode/            — программист
-│   │   ├── adapter.py
-│   │   ├── executor.py
-│   │   └── prompts/
-│   ├── openclaw/            — оператор
-│   │   ├── adapter.py
-│   │   ├── executor.py
-│   │   └── prompts/
-│   └── shared/              — общая база
-│       ├── base_agent.py
-│       └── models.py
-├── tasks/                   — жизненный цикл задач
-│   ├── incoming/
-│   ├── running/
-│   ├── failed/
-│   └── done/
-├── validations/             — модули проверки
-│   ├── code_checks.py
-│   ├── ui_checks.py
-│   └── deploy_checks.py
-└── scripts/                 — CLI-скрипты
-    ├── run_task.py
-    ├── replay_task.py
-    └── export_logs.py
+.vscode/
+└── tasks.json
 ```
 
-## Быстрый старт
+## File Roles
 
-```bash
-cd ai-system
+| File | Purpose |
+|---|---|
+| `.ail/AGENTS.md` | Agent rules for the local project |
+| `.ail/bootstrap.md` | Mandatory startup workflow |
+| `.ail/project.init.md` | Project purpose, architecture, stack, and current state |
+| `.ail/ailog.md` | Append-only work log and validation record |
+| `.ail/task.todo.json` | Deterministic local task state |
+| `.ail/memory.md` | Durable project memory and no-repeat lessons |
+| `.ail/snapshot.success.md` | Last known stable checkpoint |
+| `.ail/inbox/current-task.md` | Active task from GitHub or owner |
+| `.ail/outbox/last-result.md` | Latest validated result for owner/GitHub |
+| `.ail/state/` | AutoTasks metadata |
+| `.ail/scripts/ail-watch-issues.sh` | GitHub Issue intake watcher |
 
-# Запустить задачу
-python scripts/run_task.py "Написать функцию healthcheck" --repo ../
+## GitHub Issues Workflow
 
-# Запустить задачу с ограничениями
-python scripts/run_task.py "Собрать и задеплоить сайт" --constraint "не ломать api" --repo ../
+AIL uses GitHub Issues as a task queue when a project needs shared, durable task state.
 
-# Переиграть задачу
-python scripts/replay_task.py tasks/failed/task-00123.json --force
+1. Owner or Architect AI creates an issue.
+2. Add label `ail-task`.
+3. AutoTasks watcher imports the newest open `ail-task` issue into `.ail/inbox/current-task.md`.
+4. The owner asks an execution agent to process the inbox task.
+5. The agent follows AIL workflow: inspect, analyze, plan, patch, validate, document.
+6. Result goes to `.ail/outbox/last-result.md`.
+7. The result is posted as a GitHub issue comment.
+8. The issue is closed only after completion.
 
-# Экспортировать логи
-python scripts/export_logs.py --output report.md
-```
+## AutoTasks Workflow
 
-## AIL 3.0 AutoTasks
-
-AIL 3.0 includes an AutoTasks workflow for controlled GitHub Issue intake:
+AutoTasks is automatic task intake, not unsafe autonomous execution.
 
 ```text
 GitHub Issue labeled ail-task
--> local watcher writes .ail/inbox/current-task.md
--> agent reads the inbox task under AIL workflow
--> result is written to .ail/outbox/last-result.md
+-> watcher detects the issue
+-> watcher writes .ail/inbox/current-task.md
+-> watcher stores metadata in .ail/state/
+-> watcher optionally opens VS Code or sends a desktop notification
+-> owner asks an agent to execute
 ```
 
-AutoTasks does not execute agents automatically. It only imports tasks,
-stores metadata in `.ail/state/`, and optionally notifies or opens VS Code.
+Required tools:
 
-Reusable templates are available under:
+- `gh`
+- `jq`
+- optional `code`
+- optional `notify-send`
+
+Run:
+
+```bash
+AIL_REPO="owner/repo" .ail/scripts/ail-watch-issues.sh 20
+```
+
+## Recommended Codex Command
 
 ```text
-templates/ail-3.0/
+Read .ail/inbox/current-task.md and execute it under AIL workflow.
+
+After completion:
+- update .ail/outbox/last-result.md
+- update .ail/ailog.md
+- commit changes if appropriate
+- push to GitHub if appropriate
+- comment result in the source GitHub issue
+- close the issue if completed
 ```
 
-See `docs/AIL-3.0.md` for watcher usage, VS Code task integration, and the
-recommended Codex/Cline/Roo command.
+## Task Lifecycle
 
-## Контракт взаимодействия
-
-### Формат задачи
-```json
-{
-  "task_id": "task-00001",
-  "goal": "Собрать и задеплоить сайт",
-  "role": "hybrid",
-  "inputs": {
-    "repo": "./project",
-    "constraints": ["не ломать существующий api"]
-  },
-  "expected_output": ["updated_files", "run_commands", "summary"],
-  "status": "pending"
-}
+```text
+inspect
+-> analyze
+-> plan
+-> confirm if architectural/risky
+-> patch minimally
+-> validate
+-> document
+-> log
 ```
 
-### Формат результата
-```json
-{
-  "task_id": "task-00001",
-  "agent": "opencode",
-  "status": "success",
-  "artifacts": {
-    "files_changed": ["app/main.py", "docker-compose.yml"],
-    "commands": ["docker compose up -d --build"]
-  },
-  "notes": "Добавлен endpoint healthcheck",
-  "errors": []
-}
+## Safety Rules
+
+- Read AIL context before editing.
+- Prefer minimal diffs.
+- Do not modify unrelated files.
+- Do not hardcode secrets.
+- Do not commit `.env`.
+- Do not remove logs or comments without reason.
+- Do not rewrite architecture without owner approval.
+- Stop and ask when requirements conflict.
+- Preserve reproducibility.
+
+## Validation Rules
+
+Every task should define validation before success. Validation may include:
+
+- syntax checks;
+- unit tests;
+- build checks;
+- route/API registration checks;
+- local smoke tests;
+- manual verification notes when automation is unavailable.
+
+Success means the requested behavior was implemented and validated, not just that files were edited.
+
+## Minimal Install / Copy Pack
+
+Copy the starter pack into a project:
+
+```bash
+cp -R templates/ail-3.0/. /path/to/project/
 ```
 
-## Первый практический этап
+Then edit:
 
-Реализовано минимальное ядро:
-- [x] AIL Controller (President)
-- [x] Router (маршрутизация code/exec/hybrid)
-- [x] Planner (классификация и планирование)
-- [x] Validator (проверка результатов)
-- [x] Memory (состояние и логирование)
-- [x] OpenCode adapter + executor
-- [x] OpenClaw adapter + executor
-- [x] JSON-контракты (task, result, validation)
-- [x] Базовая валидация (code, ui, deploy)
-- [x] CLI-скрипты (run, replay, export)
+- `.ail/project.init.md`
+- `.ail/task.todo.json`
+- `.vscode/tasks.json` if needed
+
+Start AutoTasks:
+
+```bash
+cd /path/to/project
+AIL_REPO="owner/repo" .ail/scripts/ail-watch-issues.sh 20
+```
+
+## AIL 2.0 vs AIL 3.0
+
+| AIL 2.0 | AIL 3.0 |
+|---|---|
+| President/OpenCode/OpenClaw centered | Portable across Codex, Continue, Roo, Cline, and other agents |
+| More tied to one execution architecture | Copyable workflow layer for any repo |
+| Internal task queues and runtime engine focus | GitHub Issues, inbox/outbox, VS Code, local project memory |
+| Useful no-repeat and validation concepts | Preserved as project memory, prestart, and validation rules |
+| Architecture-heavy | Practical daily execution protocol |
+
+## Preserved From AIL 2.0
+
+- deterministic startup protocol;
+- `project.init.md` as entry point;
+- `ailog.md` as session log;
+- `task.todo.json` as task state;
+- `snapshot.success.md` as stable checkpoint;
+- prestart/checklist mindset;
+- no-repeat errors and durable memory;
+- validation before success;
+- no architecture changes without approval;
+- owner remains final authority.
+
+## Repository Contents
+
+This repository includes:
+
+- current AIL 3.0 documentation;
+- reusable AIL 3.0 templates;
+- historical AIL 2.0 / AI-system prototype files;
+- dashboard and older execution-engine experiments.
+
+Historical files are kept for continuity. New projects should start from `templates/ail-3.0/`.
+
+## Roadmap
+
+- Finish AIL 3.0 documentation and starter templates.
+- Add attribution and NOTICE files.
+- Add more project templates.
+- Add optional issue result posting helpers.
+- Add validation examples for common stacks.
+- Keep AutoTasks intake safe and user-approved.
