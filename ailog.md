@@ -202,3 +202,33 @@ Execute GitHub Issue #4: add visible attribution, NOTICE, and license files for 
 - Markdown files listed and inspected for readability.
 - Attribution is visible from README.
 - No aggressive legal accusations were added.
+
+## Session 2026-05-25 — Git author normalization
+
+### Goal
+Execute GitHub Issue #5: ensure future commits are authored by the project creator account and inspect existing `cursoragent` commits.
+
+### Current Config Before
+- Local `user.name`: unset
+- Local `user.email`: unset
+- Global `user.name`: unset
+- Global `user.email`: unset
+
+### Commit Author Inspection
+- `Cursor Agent <cursoragent@cursor.com>`: 14 commits
+- `Ldiga <128315046+Ldiga174@users.noreply.github.com>`: 13 commits
+- `ldiga174 <ldiga174@gmail.com>`: 5 commits
+- `Ldiga174 <Ldiga174@users.noreply.github.com>`: 3 commits
+
+### Config Applied
+- Set local repository `user.name` to `Ldiga`.
+- Set local repository `user.email` to `lrsrider@gmail.com`.
+- Did not change global Git config.
+- Did not rewrite history or force push.
+
+### Final Config
+- Local `user.name`: `Ldiga`
+- Local `user.email`: `lrsrider@gmail.com`
+
+### Recommendation
+Do not rewrite old `cursoragent` commits yet. Rewriting history changes commit hashes and requires force push coordination. Future commits from this local repository will use `Ldiga <lrsrider@gmail.com>`.
