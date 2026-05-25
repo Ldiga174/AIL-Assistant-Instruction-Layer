@@ -185,3 +185,20 @@ Execute GitHub Issue #3: rewrite main documentation to full AIL 3.0 and preserve
 - `find . -maxdepth 4 -name '*.md' -print` completed.
 - `bash -n templates/ail-3.0/.ail/scripts/ail-watch-issues.sh` passed.
 - `python3 -m json.tool templates/ail-3.0/.vscode/tasks.json` passed.
+
+## Session 2026-05-25 — Attribution and NOTICE
+
+### Goal
+Execute GitHub Issue #4: add visible attribution, NOTICE, and license files for AIL.
+
+### Completed
+- Added Apache-2.0 `LICENSE`.
+- Added `NOTICE.md` with creator attribution.
+- Added `ATTRIBUTION.md` with recommended attribution wording.
+- Added README attribution section.
+- Added license/notice/attribution entries to `project.init.md`.
+
+### Validation
+- Markdown files listed and inspected for readability.
+- Attribution is visible from README.
+- No aggressive legal accusations were added.

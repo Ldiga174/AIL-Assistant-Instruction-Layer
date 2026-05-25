@@ -230,10 +230,27 @@ This repository includes:
 
 Historical files are kept for continuity. New projects should start from `templates/ail-3.0/`.
 
+## Attribution
+
+AIL was created by Rodion Lebedev / Ldiga.
+
+If you use AIL, its workflow, templates, AutoTasks, GitHub Issue task protocol,
+inbox/outbox structure, watcher scripts, or documentation in your own tool,
+product, AI IDE, SaaS, internal workflow, or public repository, please credit
+the original project:
+
+**Based on AIL - Assistant Instruction Layer by Rodion Lebedev / Ldiga.**
+
+Repository: https://github.com/Ldiga174/AIL-Assistant-Instruction-Layer
+
+This project is licensed under Apache-2.0. When redistributing derivative work
+that includes substantial AIL materials, preserve the attribution notices in
+`NOTICE.md` as required by the license.
+
 ## Roadmap
 
 - Finish AIL 3.0 documentation and starter templates.
-- Add attribution and NOTICE files.
+- Add more attribution examples for downstream templates.
 - Add more project templates.
 - Add optional issue result posting helpers.
 - Add validation examples for common stacks.

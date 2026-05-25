@@ -40,6 +40,9 @@ Owner / Architect AI
 | `ailog.md` | Repository session log |
 | `task.todo.json` | Local task state |
 | `snapshot.success.md` | Stable checkpoint record |
+| `LICENSE` | Apache-2.0 license |
+| `NOTICE.md` | Creator attribution notice |
+| `ATTRIBUTION.md` | Recommended attribution wording |
 | `ail.errors.md` | Project no-repeat error register |
 | `ail.errors.common.template.md` | Reusable no-repeat error template |
 | `ai-system/` | Historical AIL 2.0 prototype and engine reference |
