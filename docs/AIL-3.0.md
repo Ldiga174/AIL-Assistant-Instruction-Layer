@@ -120,6 +120,43 @@ Owner creates issue
 -> issue closes only after completion
 ```
 
+## Nostr as Future Decentralized Task Transport
+
+GitHub Issues remain the current default AIL task queue. Nostr is only a future
+optional transport option, not a replacement for the current MVP workflow.
+
+AIL tasks could later be represented as signed Nostr events, and AIL results
+could later be represented as signed Nostr result events. A local intake layer
+would decode a trusted task event into `.ail/inbox/current-task.md`; the
+executor would still follow normal AIL rules and write
+`.ail/outbox/last-result.md` before any result event is published.
+
+Future mapping:
+
+```text
+GitHub Issue        -> Nostr signed task event
+Issue comment       -> Nostr signed result event
+Issue labels        -> Nostr tags
+Issue number        -> event id / task id
+GitHub author       -> Nostr public key
+.ail/inbox          -> local decoded task copy
+.ail/outbox         -> local result before publish
+```
+
+Relays are transport and distribution infrastructure, not authority. Executors
+must verify event signatures and trusted owner public keys before acting. Owner
+identity should be based on cryptographic keys, not relay trust.
+
+Nostr intake must not auto-execute arbitrary events from public relays. Any
+future implementation must preserve AIL safety boundaries: bounded task, clear
+scope, validation, expected result, owner approval or trusted-key policy, and
+secure external private key handling. Private keys must never be stored in the
+repository.
+
+This fits future DPA goals: decentralized task routing, agent coordination,
+censorship resistance, and portable identity. See `docs/nostr-transport.md`
+for the full concept and safety notes.
+
 ## Why AIL Uses GitHub Issues From the Main LLM
 
 AIL separates reasoning from execution.

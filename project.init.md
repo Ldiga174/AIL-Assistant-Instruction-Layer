@@ -35,6 +35,7 @@ Owner / Architect AI
 |---|---|
 | `README.md` | Public AIL 3.0 overview |
 | `docs/AIL-3.0.md` | Detailed AIL 3.0 workflow documentation |
+| `docs/nostr-transport.md` | Future optional Nostr task/result transport concept |
 | `templates/ail-3.0/` | Copyable starter pack for projects |
 | `project.init.md` | This AI entry point |
 | `ailog.md` | Repository session log |
@@ -80,6 +81,13 @@ Reusable watcher:
 ```text
 templates/ail-3.0/.ail/scripts/ail-watch-issues.sh
 ```
+
+## Future Transport Note
+
+GitHub Issues remain the default AIL task queue. Nostr is documented only as a
+future optional decentralized transport where tasks and results could be signed
+events from trusted owner keys. Relays are transport, not authority, and future
+intake must never auto-execute arbitrary public relay events.
 
 VS Code task template:
 

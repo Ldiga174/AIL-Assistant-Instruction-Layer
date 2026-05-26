@@ -97,6 +97,20 @@ AIL uses GitHub Issues as a task queue when a project needs shared, durable task
 7. The result is posted as a GitHub issue comment.
 8. The issue is closed only after completion.
 
+## Future Transport Options
+
+GitHub Issues remain the default AIL 3.0 task queue. AIL may later support
+optional decentralized transports such as Nostr, where tasks and results are
+represented as signed events from trusted owner public keys.
+
+Nostr relays would be transport only, not authority. Executors must not run
+arbitrary events from public relays, and any future implementation must preserve
+AIL boundaries: trusted signer verification, bounded scope, validation, owner
+approval or trusted-key policy, and secure private key handling outside the
+repository.
+
+See `docs/nostr-transport.md` for the future Nostr transport concept.
+
 ## Why AIL Uses GitHub Issues From the Main LLM
 
 AIL separates reasoning from execution.

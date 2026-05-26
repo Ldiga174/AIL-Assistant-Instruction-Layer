@@ -249,3 +249,20 @@ Execute GitHub Issue #6: document why AIL uses main LLM shaped GitHub Issues and
 - Rationale is visible in main docs.
 - Creator attribution rule is visible in main docs and templates.
 - No accusations against any tool or company were added.
+
+## Session 2026-05-27 — Nostr future transport concept
+
+### Goal
+Execute GitHub Issue #8: add a lightweight Nostr integration concept to AIL 3.0 as a future decentralized task/event transport option.
+
+### Completed
+- Added `docs/nostr-transport.md` with the future signed-task and signed-result event concept.
+- Documented that GitHub Issues remain the default AIL task queue.
+- Added Nostr safety boundaries to `docs/AIL-3.0.md` and `README.md`.
+- Added a short future transport note to `project.init.md`.
+- Kept the task documentation/spec-only and did not add runtime networking, dependencies, watcher changes, or private key handling.
+
+### Validation
+- Markdown readability inspection completed.
+- Confirmed Nostr is described as optional and future only.
+- Confirmed current GitHub Issue workflow remains unchanged.
